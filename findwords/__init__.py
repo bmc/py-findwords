@@ -60,8 +60,8 @@ class TrieNode:
        "abehlpt"
 
     etc.
-
     """
+
     letter: str | None = field(default=None)
     children: dict[str, Self] = field(default_factory=dict)
     words: set[str] = field(default_factory=set)
@@ -152,19 +152,21 @@ def find_matches(letters: str, root: TrieNode) -> list[str]:
     letters - the letters to check
     root    - the root of the loaded dictionary trie
     """
+
     def check_nodes(letters: str, nodes: list[TrieNode]) -> list[str]:
         def remove_first(letter: str, letters: str) -> str:
             try:
                 i = letters.index(letter)
-                return letters[:i] + letters[i+1:]
+                return letters[:i] + letters[i + 1 :]
             except ValueError:
                 # Letter not found. Just return the string.
                 return letters
 
         # Filter the list of nodes so that we only consider the ones
         # that matter.
-        nodes = [n for n in nodes
-                 if n.letter is not None and n.letter in letters]
+        nodes = [
+            n for n in nodes if n.letter is not None and n.letter in letters
+        ]
 
         matches = []
         cur_letters = letters
@@ -181,7 +183,7 @@ def find_matches(letters: str, root: TrieNode) -> list[str]:
 
         return matches
 
-    sorted_letters = ''.join(sorted(letters.lower()))
+    sorted_letters = "".join(sorted(letters.lower()))
     return check_nodes(sorted_letters, list(root.children.values()))
 
 
@@ -272,18 +274,24 @@ def once_and_done(trie: TrieNode, letter_list: list[str]) -> None:
 
 @click.command(name=NAME, context_settings=CLICK_CONTEXT_SETTINGS)
 @click.option(
-    "-d", "--dictionary", type=click.Path(exists=True, dir_okay=False),
+    "-d",
+    "--dictionary",
+    type=click.Path(exists=True, dir_okay=False),
     envvar="FINDWORDS_DICTIONARY",
-    default=DEFAULT_DICTIONARY, show_default=True,
+    default=DEFAULT_DICTIONARY,
+    show_default=True,
     help="Path to dictionary to load and use. If not specified, the "
-         "FINDWORDS_DICTIONARY environment variable is consulted. If that's "
-         "empty, the default is used."
+    "FINDWORDS_DICTIONARY environment variable is consulted. If that's "
+    "empty, the default is used.",
 )
 @click.option(
-    "-H", "--history", type=click.Path(dir_okay=False),
-    default=DEFAULT_HISTORY_FILE, show_default=True,
+    "-H",
+    "--history",
+    type=click.Path(dir_okay=False),
+    default=DEFAULT_HISTORY_FILE,
+    show_default=True,
     help="Path to readline history file. Ignored unless no words are specified "
-         "on the command line (i.e., ignored in non-interactive mode)."
+    "on the command line (i.e., ignored in non-interactive mode).",
 )
 @click.argument("letter_list", nargs=-1, metavar="letters")
 def main(dictionary: str, letter_list: list[str], history: str) -> None:
@@ -298,6 +306,7 @@ def main(dictionary: str, letter_list: list[str], history: str) -> None:
         once_and_done(trie, letter_list)
     else:
         interactive_mode(trie, Path(history))
+
 
 if __name__ == "__main__":
     main()
