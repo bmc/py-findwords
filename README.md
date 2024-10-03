@@ -1,8 +1,8 @@
 # py-findwords
 
 Written in Python, this program is a fast word game anagram finder, suitable
-for use with Scrabble®, Words with Friends, and similar games. Also has an
-interactive interpreter mode that supports history and command-line editing.
+for use with Scrabble®, Words with Friends, and similar games. It also has an
+interactive mode that supports history and command-line editing.
 
 ## Installation
 
