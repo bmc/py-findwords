@@ -91,7 +91,6 @@ def add_word(word: str, root: TrieNode) -> None:
 
         node = subnode
 
-    assert node is not root
     node.words.add(word)
 
 
@@ -155,10 +154,9 @@ def find_matches(letters: str, root: TrieNode) -> list[str]:
 
     def check_nodes(letters: str, nodes: list[TrieNode]) -> list[str]:
         def remove_first(letter: str, letters: str) -> str:
-            try:
-                i = letters.index(letter)
+            if (i := letters.index(letter)) != -1:
                 return letters[:i] + letters[i + 1 :]
-            except ValueError:
+            else:
                 # Letter not found. Just return the string.
                 return letters
 
