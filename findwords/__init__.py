@@ -115,7 +115,7 @@ def load_dictionary(dict_path: Path) -> TrieNode:
     root = TrieNode()
 
     with open(dict_path) as f:
-        print(f'Loading dictionary "{dict_path}" ...')
+        print(f'Loading dictionary "{dict_path}".')
         for line in f.readlines():
             word = line.strip()
             if not valid_string(word):
