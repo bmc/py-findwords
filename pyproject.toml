@@ -87,7 +87,7 @@ src_paths = ["*.py"]
 
 [tool.pyright]
 # pyright is a type checker.
-venvPath = "venv"
+#venvPath = "venv"
 include = ["./*.py"]
 exclude = ["./tasks.py", "bin"]
 
