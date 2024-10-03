@@ -10,7 +10,7 @@ import click
 
 
 NAME = "findwords"
-VERSION = "0.0.1"
+VERSION = "0.0.2"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10000
 # Note that Python's readline library can be based on GNU Readline
@@ -67,12 +67,16 @@ class TrieNode:
     words: set[str] = field(default_factory=set)
 
 
-def valid_string(word: str) -> bool:
+def valid_string(s: str) -> bool:
     """
     Determine whether a string to match is valid. Currently, only strings
     with ASCII letters are permitted.
+
+    :param s: the string to check
+
+    :return: True if the string is valid, False if not
     """
-    for letter in word.lower():
+    for letter in s.lower():
         if letter not in string.ascii_lowercase:
             return False
 
@@ -80,6 +84,12 @@ def valid_string(word: str) -> bool:
 
 
 def add_word(word: str, root: TrieNode) -> None:
+    """
+    Add a word from the dictionary into the dictionary trie.
+
+    :param word: the word to add
+    :param root: the root of the trie
+    """
     node = root
 
     # Build node tree for the word. The final node gets the word attached
@@ -97,6 +107,10 @@ def add_word(word: str, root: TrieNode) -> None:
 def load_dictionary(dict_path: Path) -> TrieNode:
     """
     Load the dictionary into a trie.
+
+    :param dict_path: path to the dictionary file to load
+
+    :return: the root of the dictionary trie
     """
     root = TrieNode()
 
@@ -113,12 +127,26 @@ def load_dictionary(dict_path: Path) -> TrieNode:
     return root
 
 
+def header(s: str) -> str:
+    """
+    Return a suitable header for a string being matched. Useful when
+    emitting output for multiple strings.
+
+    :param s: the string
+    :return: the header
+    """
+    sep = "*" * len(s)
+    return f"{sep}\n{s}\n{sep}"
+
+
 def show_matches(matches: list[str]) -> None:
     """
     Display all matches for a set of letters. The matches are grouped by
     word length and then sorted within each group, so that all matches of
     the same length are printed together. Each group is separated by a blank
     line, for readability.
+
+    :param matches: the list of words that match the original input string
     """
     if len(matches) == 0:
         print(f"*** No matches.")
@@ -146,10 +174,10 @@ def find_matches(letters: str, root: TrieNode) -> list[str]:
     Given a group of letters, find all words in the dictionary that can
     be made from them.
 
-    Parameters:
+    :param letters: the letters to check
+    :param root: the root of the loaded dictionary trie
 
-    letters - the letters to check
-    root    - the root of the loaded dictionary trie
+    :return: a possibly empty list of words that match
     """
 
     def check_nodes(letters: str, nodes: list[TrieNode]) -> list[str]:
@@ -221,11 +249,15 @@ def interactive_mode(trie: TrieNode, history_path: Path) -> None:
     """
     No letters on command line, so prompt for successive words with
     readline. Continues prompting until Ctrl-D or ".exit".
+
+    :param trie: the loaded dictionary trie
+    :param history_path: path to the history file to use
     """
     init_readline_history(history_path)
     init_readline_bindings()
     print(f"\n{NAME}, version {VERSION}")
-    print(f"(Ctrl-D or {EXIT_COMMAND} to exit.)\n")
+    print(f"Enter one or more strings, separated by white space.")
+    print(f"Type Ctrl-D or {EXIT_COMMAND} to exit.\n")
 
     while True:
         try:
@@ -233,14 +265,28 @@ def interactive_mode(trie: TrieNode, history_path: Path) -> None:
             # been loaded.
             line = input(PROMPT).strip()
 
+            if len(line) == 0:
+                continue
+
             if line == EXIT_COMMAND:
                 break
 
-            if not valid_string(line):
-                print(f'"{line}" contains non-letter characters. Ignored.')
-                continue
+            # Break the line up into multiple words, to allow more than one
+            # word per line.
 
-            show_matches(find_matches(line, trie))
+            strings = line.split()
+            use_prefix = len(strings) > 1
+            for s in line.split():
+                if not valid_string(s):
+                    print(f'"{s}" contains non-letter characters. Ignored.')
+                    continue
+
+                if use_prefix:
+                    print()
+                    print(header(s))
+                    print()
+
+                show_matches(find_matches(s, trie))
 
         except EOFError:
             # Ctrl-D to input()
@@ -252,6 +298,9 @@ def once_and_done(trie: TrieNode, letter_list: list[str]) -> None:
     """
     Handle command line letters: Find matches for each set of letters,
     print them, and return.
+
+    :param trie: the loaded dictionary trie
+    :param letter_list: the list of strings to process
     """
     header_and_sep = len(letter_list) > 1
     for letters in letter_list:
@@ -260,9 +309,8 @@ def once_and_done(trie: TrieNode, letter_list: list[str]) -> None:
             continue
 
         if header_and_sep:
-            print("*" * len(letters))
+            print(header(letters))
             print(letters)
-            print("*" * len(letters))
             print()
 
         show_matches(find_matches(letters, trie))
