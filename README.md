@@ -68,16 +68,19 @@ mode, where you can enter as many words as you want.
 ## Maintenance Warning
 
 I built this tool for my personal use. It replaces an older version I'd written
-in Scala. (This Python version has less code and starts up faster.) If you find
-it useful, as a tool or even as an example of how to build a `readline`-based
-program in Python, that's great. But this isn't intended to be
-commercial-grade software, and I'm not aggressively maintaining it.
-Don't expect me to jump on feature requests.
+in Scala. (This Python version has less code and starts up faster.)
 
-**Windows users**: You're on your own. Sorry. I haven't tested `findwords`
-on Windows, and I likely won't. It runs fine for me on Linux and MacOS. If it
+If you find it useful, as a tool, as a reasonable enough example of code
+that uses a [trie](https://en.wikipedia.org/wiki/Trie), or even as an example
+of how to build a `readline`-based program in Python, that's great. But this
+isn't intended to be commercial-grade software, and I'm not aggressively
+maintaining it. Don't expect me to jump on feature requests or bug reports.
+
+**Special note for Windows users**: You're on your own. Sorry. I haven't
+tested `findwords` on Windows, and I likely won't. I dislike doing development
+on Windows. `findwords` runs fine for me on Linux and MacOS. If it somehow
 works for you on Windows, that's terrific (but unlikely). In any case, I'm
-unwilling to spend any time getting this to work on Windows.
+unwilling to spend any time getting it to work there.
 
 ## License
 
