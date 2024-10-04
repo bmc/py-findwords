@@ -4,13 +4,13 @@ from contextlib import suppress
 from pathlib import Path
 import readline
 import string
-from typing import Self
+from typing import Self, Callable
 
 import click
 
 
 NAME = "findwords"
-VERSION = "0.0.2"
+VERSION = "0.0.3"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10000
 # Note that Python's readline library can be based on GNU Readline
@@ -67,6 +67,14 @@ class TrieNode:
     words: set[str] = field(default_factory=set)
 
 
+def _emit_message(s: str) -> None:
+    print(s)
+
+
+# Will be changed to something else if -q is specified.
+msg: Callable[[str], None] = _emit_message
+
+
 def valid_string(s: str) -> bool:
     """
     Determine whether a string to match is valid. Currently, only strings
@@ -114,15 +122,24 @@ def load_dictionary(dict_path: Path) -> TrieNode:
     """
     root = TrieNode()
 
+    total_loaded = 0
+    unique_words: set[str] = set()
     with open(dict_path) as f:
-        print(f'Loading dictionary "{dict_path}".')
+        msg(f'Loading dictionary "{dict_path}".')
         for line in f.readlines():
             word = line.strip()
             if not valid_string(word):
-                print(f'*** Skipping word "{word}": Invalid letter(s)')
+                msg(f'*** Skipping word "{word}": Invalid letter(s)')
                 continue
 
+            if word in unique_words:
+                continue
+
+            unique_words.add(word)
             add_word(word, root)
+            total_loaded += 1
+
+    msg(f"Loaded {total_loaded:,} words.")
 
     return root
 
@@ -220,7 +237,7 @@ def init_readline_history(history_path: Path) -> None:
     :param history_path: Path of the history file. It doesn't have to exist.
     """
     if history_path.exists():
-        print(f'Loading history from "{history_path}".')
+        msg(f'Loading history from "{history_path}".')
         readline.read_history_file(str(history_path))
         # default history len is -1 (infinite), which may grow unruly
 
@@ -235,13 +252,13 @@ def init_readline_bindings() -> None:
     """
     if (readline.__doc__ is not None) and ("libedit" in readline.__doc__):
         init_file = EDITLINE_BINDINGS_FILE
-        print(f"Using editline (libedit).")
+        msg(f"Using editline (libedit).")
     else:
-        print(f"Using GNU readline.")
+        msg(f"Using GNU readline.")
         init_file = READLINE_BINDINGS_FILE
 
     if init_file.exists():
-        print(f'Loading readline bindings from "{init_file}".')
+        msg(f'Loading readline bindings from "{init_file}".')
         readline.read_init_file(init_file)
 
 
@@ -255,7 +272,7 @@ def interactive_mode(trie: TrieNode, history_path: Path) -> None:
     """
     init_readline_history(history_path)
     init_readline_bindings()
-    print(f"\n{NAME}, version {VERSION}")
+    print(f"{NAME}, version {VERSION}")
     print(f"Enter one or more strings, separated by white space.")
     print(f"Type Ctrl-D or {EXIT_COMMAND} to exit.\n")
 
@@ -339,14 +356,29 @@ def once_and_done(trie: TrieNode, letter_list: list[str]) -> None:
     help="Path to readline history file. Ignored unless no words are specified "
     "on the command line (i.e., ignored in non-interactive mode).",
 )
+@click.option(
+    "-v",
+    "--verbose",
+    is_flag=True,
+    help='Emit initialization messages (like "Loading dictionary") on startup.'
+)
 @click.argument("letter_list", nargs=-1, metavar="letters")
-def main(dictionary: str, letter_list: list[str], history: str) -> None:
+def main(
+    dictionary: str,
+    letter_list: list[str],
+    history: str,
+    verbose: bool
+) -> None:
     """
     Given one or more strings of letters, find and display all the words that
     can be made from those letters. Note: Only ASCII characters are currently
     supported. If no words are specified on the command line, findwords prompts
     interactively for them, using readline().
     """
+    global msg
+    if not verbose:
+        msg = lambda _: None
+
     trie = load_dictionary(Path(dictionary))
     if len(letter_list) > 0:
         once_and_done(trie, letter_list)
