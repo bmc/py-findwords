@@ -1,16 +1,16 @@
 import atexit
 from dataclasses import dataclass, field
-from contextlib import suppress
 from pathlib import Path
 import readline
 import string
+from termcolor import colored
 from typing import Self, Callable
 
 import click
 
 
 NAME = "findwords"
-VERSION = "0.0.3"
+VERSION = "0.0.4"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10000
 # Note that Python's readline library can be based on GNU Readline
@@ -23,7 +23,7 @@ DEFAULT_SCREEN_WIDTH = 79
 DEFAULT_HISTORY_FILE = Path("~/.findwords-history").expanduser()
 DEFAULT_CONFIG_FILE = Path("~/.findwords.cfg").expanduser()
 DEFAULT_DICTIONARY = Path("~/etc/findwords/dict.txt").expanduser()
-PROMPT = "findwords> "
+PROMPT = colored("findwords> ", "cyan", attrs=["bold"])
 EXIT_COMMAND = ".exit"
 
 
