@@ -1,5 +1,6 @@
 import atexit
 from dataclasses import dataclass, field
+import itertools
 from pathlib import Path
 import readline
 import string
@@ -10,7 +11,7 @@ import click
 
 
 NAME = "findwords"
-VERSION = "0.0.5"
+VERSION = "0.0.6"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10000
 # Note that Python's readline library can be based on GNU Readline
@@ -169,18 +170,19 @@ def show_matches(matches: list[str]) -> None:
         print(f"*** No matches.")
         return
 
-    # Group them by word length.
-    by_length: dict[int, list[str]] = {}
-    for word in matches:
-        word_len = len(word)
-        len_words: list[str] = by_length.get(word_len, [])
-        len_words.append(word)
-        by_length[word_len] = len_words
+    def sort_by_length(s: str) -> int:
+        return len(s)
 
-    # Print each group, sorted within the group.
-    for length in sorted(by_length.keys()):
-        words = sorted(by_length[length])
-        for word in words:
+    # Group them by word length. Note that itertools.groupby() requires that
+    # the input be sorted by the same function that will group them.
+    sorted_matches = sorted(matches, key=sort_by_length)
+    grouped = itertools.groupby(sorted_matches, key=sort_by_length)
+
+    # groupby() returns a (key, group_list) pair. The key is the length, which
+    # we can ignore here. The values should already be sorted within each
+    # group.
+    for _, group in grouped:
+        for word in group:
             print(word)
 
         print()
