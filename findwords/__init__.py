@@ -12,7 +12,7 @@ from termcolor import colored
 
 
 NAME = "findwords"
-VERSION = "0.0.7"
+VERSION = "0.0.8"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10000
 # Note that Python's readline library can be based on GNU Readline
@@ -59,9 +59,8 @@ class TrieNode:
     3. Get the child for the first letter ("a"). Save its words, if any.
     4. Then, remove the first "a", yielding "abehlpt"
     5. Get all the children of node "a", and recursively match against
-       "abehlpt"
-
-    etc.
+       "abehlpt", etc.
+    6. Then, go back and do the same thing with the "b", then the "e", etc.
     """
 
     letter: str | None = field(default=None)
@@ -77,18 +76,26 @@ def _emit_message(s: str) -> None:
 msg: Callable[[str], None] = _emit_message
 
 
-def valid_string(s: str) -> bool:
+def check_string(s: str, min_length: int) -> bool:
     """
     Determine whether a string to match is valid. Currently, only strings
-    with ASCII letters are permitted.
+    with ASCII letters are permitted, and the length must be at least as
+    long as min_length.
 
     :param s: the string to check
 
-    :return: True if the string is valid, False if not
+    :raises ValueError: if the string is invalid
     """
+    if len(s) < min_length:
+        raise ValueError(
+            f'"{s}" is shorter than the minimum match length of {min_length}'
+        )
+
     for letter in s.lower():
         if letter not in string.ascii_lowercase:
-            return False
+            raise ValueError(
+                f'"{s}" contains non-ASCII characters or non-letters.'
+            )
 
     return True
 
@@ -130,8 +137,10 @@ def load_dictionary(dict_path: Path) -> TrieNode:
         msg(f'Loading dictionary "{dict_path}".')
         for line in f.readlines():
             word = line.strip()
-            if not valid_string(word):
-                msg(f'*** Skipping word "{word}": Invalid letter(s)')
+            try:
+                check_string(word, 1)
+            except ValueError as e:
+                msg(f'*** Skipping word "{word}": {e}')
                 continue
 
             if word in unique_words:
@@ -144,6 +153,38 @@ def load_dictionary(dict_path: Path) -> TrieNode:
     msg(f"Loaded {total_loaded:,} words.")
 
     return root
+
+
+def init_readline_history(history_path: Path) -> None:
+    """
+    Load the local readline history file.
+
+    :param history_path: Path of the history file. It doesn't have to exist.
+    """
+    if history_path.exists():
+        msg(f'Loading history from "{history_path}".')
+        readline.read_history_file(str(history_path))
+        # default history len is -1 (infinite), which may grow unruly
+
+    readline.set_history_length(HISTORY_LENGTH)
+    atexit.register(readline.write_history_file, str(history_path))
+
+
+def init_readline_bindings() -> None:
+    """
+    Initialize readline bindings. Completion isn't currently necessary,
+    since there are no commands to complete.
+    """
+    if (readline.__doc__ is not None) and ("libedit" in readline.__doc__):
+        init_file = EDITLINE_BINDINGS_FILE
+        msg(f"Using editline (libedit).")
+    else:
+        msg(f"Using GNU readline.")
+        init_file = READLINE_BINDINGS_FILE
+
+    if init_file.exists():
+        msg(f'Loading readline bindings from "{init_file}".')
+        readline.read_init_file(init_file)
 
 
 def header(s: str) -> str:
@@ -171,13 +212,10 @@ def show_matches(matches: list[str]) -> None:
         print(f"*** No matches.")
         return
 
-    def sort_by_length(s: str) -> int:
-        return len(s)
-
     # Group them by word length. Note that itertools.groupby() requires that
     # the input be sorted by the same function that will group them.
-    sorted_matches = sorted(matches, key=sort_by_length)
-    grouped = itertools.groupby(sorted_matches, key=sort_by_length)
+    sorted_matches = sorted(matches, key=len)
+    grouped = itertools.groupby(sorted_matches, key=len)
 
     # groupby() returns a (key, group_list) pair. The key is the length, which
     # we can ignore here. The values should already be sorted within each
@@ -189,7 +227,7 @@ def show_matches(matches: list[str]) -> None:
         print()
 
 
-def find_matches(letters: str, root: TrieNode) -> list[str]:
+def find_matches(letters: str, root: TrieNode, min_length: int) -> list[str]:
     """
     Given a group of letters, find all words in the dictionary that can
     be made from them.
@@ -231,42 +269,13 @@ def find_matches(letters: str, root: TrieNode) -> list[str]:
         return matches
 
     sorted_letters = "".join(sorted(letters.lower()))
-    return check_nodes(sorted_letters, list(root.children.values()))
+    all_matches = check_nodes(sorted_letters, list(root.children.values()))
+    return [m for m in all_matches if len(m) >= min_length]
 
 
-def init_readline_history(history_path: Path) -> None:
-    """
-    Load the local readline history file.
-
-    :param history_path: Path of the history file. It doesn't have to exist.
-    """
-    if history_path.exists():
-        msg(f'Loading history from "{history_path}".')
-        readline.read_history_file(str(history_path))
-        # default history len is -1 (infinite), which may grow unruly
-
-    readline.set_history_length(HISTORY_LENGTH)
-    atexit.register(readline.write_history_file, str(history_path))
-
-
-def init_readline_bindings() -> None:
-    """
-    Initialize readline bindings. Completion isn't currently necessary,
-    since there are no commands to complete.
-    """
-    if (readline.__doc__ is not None) and ("libedit" in readline.__doc__):
-        init_file = EDITLINE_BINDINGS_FILE
-        msg(f"Using editline (libedit).")
-    else:
-        msg(f"Using GNU readline.")
-        init_file = READLINE_BINDINGS_FILE
-
-    if init_file.exists():
-        msg(f'Loading readline bindings from "{init_file}".')
-        readline.read_init_file(init_file)
-
-
-def interactive_mode(trie: TrieNode, history_path: Path) -> None:
+def interactive_mode(
+    trie: TrieNode, history_path: Path, min_length: int
+) -> None:
     """
     No letters on command line, so prompt for successive words with
     readline. Continues prompting until Ctrl-D or ".exit".
@@ -299,8 +308,10 @@ def interactive_mode(trie: TrieNode, history_path: Path) -> None:
             strings = line.split()
             use_prefix = len(strings) > 1
             for s in line.split():
-                if not valid_string(s):
-                    print(f'"{s}" contains non-letter characters. Ignored.')
+                try:
+                    check_string(s, min_length)
+                except ValueError as e:
+                    print(f'Ignoring "{s}": {e}')
                     continue
 
                 if use_prefix:
@@ -308,7 +319,7 @@ def interactive_mode(trie: TrieNode, history_path: Path) -> None:
                     print(header(s))
                     print()
 
-                show_matches(find_matches(s, trie))
+                show_matches(find_matches(s, trie, min_length))
 
         except EOFError:
             # Ctrl-D to input()
@@ -316,7 +327,9 @@ def interactive_mode(trie: TrieNode, history_path: Path) -> None:
             break
 
 
-def once_and_done(trie: TrieNode, letter_list: list[str]) -> None:
+def once_and_done(
+    trie: TrieNode, letter_list: list[str], min_length: int
+) -> None:
     """
     Handle command line letters: Find matches for each set of letters,
     print them, and return.
@@ -326,8 +339,10 @@ def once_and_done(trie: TrieNode, letter_list: list[str]) -> None:
     """
     header_and_sep = len(letter_list) > 1
     for letters in letter_list:
-        if not valid_string(letters):
-            print(f'Skipping "{letters}", as it has non-letter characters.')
+        try:
+            check_string(letters, min_length)
+        except ValueError as e:
+            print(f'Skipping "{letters}": {e}')
             continue
 
         if header_and_sep:
@@ -335,9 +350,16 @@ def once_and_done(trie: TrieNode, letter_list: list[str]) -> None:
             print(letters)
             print()
 
-        show_matches(find_matches(letters, trie))
+        show_matches(find_matches(letters, trie, min_length))
         if header_and_sep:
             print("-" * 50)
+
+
+def validate_min_length(ctx: click.Context, param: str, value: int) -> int:
+    if value <= 0:
+        raise click.BadParameter(f"{param} must be a positive integer.")
+
+    return value
 
 
 @click.command(name=NAME, context_settings=CLICK_CONTEXT_SETTINGS)
@@ -362,17 +384,26 @@ def once_and_done(trie: TrieNode, letter_list: list[str]) -> None:
     "on the command line (i.e., ignored in non-interactive mode).",
 )
 @click.option(
+    "-m",
+    "--min-length",
+    default=2,
+    callback=validate_min_length,
+    show_default=True,
+    help="Minimum length of words to find. Must be a positive number.",
+)
+@click.option(
     "-v",
     "--verbose",
     is_flag=True,
-    help='Emit initialization messages (like "Loading dictionary") on startup.'
+    help='Emit initialization messages (like "Loading dictionary") on startup.',
 )
 @click.argument("letter_list", nargs=-1, metavar="letters")
 def main(
     dictionary: str,
     letter_list: list[str],
     history: str,
-    verbose: bool
+    min_length: int,
+    verbose: bool,
 ) -> None:
     """
     Given one or more strings of letters, find and display all the words that
@@ -386,9 +417,9 @@ def main(
 
     trie = load_dictionary(Path(dictionary))
     if len(letter_list) > 0:
-        once_and_done(trie, letter_list)
+        once_and_done(trie, letter_list, min_length)
     else:
-        interactive_mode(trie, Path(history))
+        interactive_mode(trie, Path(history), min_length)
 
 
 if __name__ == "__main__":
