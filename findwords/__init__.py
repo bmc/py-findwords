@@ -4,14 +4,15 @@ import itertools
 from pathlib import Path
 import readline
 import string
-from termcolor import colored
 from typing import Self, Callable
 
+import art
 import click
+from termcolor import colored
 
 
 NAME = "findwords"
-VERSION = "0.0.6"
+VERSION = "0.0.7"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10000
 # Note that Python's readline library can be based on GNU Readline
@@ -275,7 +276,8 @@ def interactive_mode(trie: TrieNode, history_path: Path) -> None:
     """
     init_readline_history(history_path)
     init_readline_bindings()
-    print(f"{NAME}, version {VERSION}")
+    art.tprint(NAME)
+    print(f"Version {VERSION}")
     print(f"Enter one or more strings, separated by white space.")
     print(f"Type Ctrl-D or {EXIT_COMMAND} to exit.\n")
 
