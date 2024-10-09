@@ -13,7 +13,7 @@ name = "findwords"
 # dynamically discovered. See [tools.setuptools.dynamic], below.
 dynamic = ["version", "readme"]
 dependencies = [
-  "art>=6.3"
+  "art>=6.3",
   "click>=8.1.7",
   "termcolor>=2.2.0"
 ]
