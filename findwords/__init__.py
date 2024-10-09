@@ -10,7 +10,7 @@ import click
 
 
 NAME = "findwords"
-VERSION = "0.0.4"
+VERSION = "0.0.5"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10000
 # Note that Python's readline library can be based on GNU Readline
@@ -212,17 +212,18 @@ def find_matches(letters: str, root: TrieNode) -> list[str]:
         ]
 
         matches = []
-        cur_letters = letters
         # Now, recursively check each one.
         for n in nodes:
+            # This node's children represent possible paths. Add any words
+            # in this node, since it's a match.
             matches.extend(list(n.words))
 
             # Remove the first instance of n.letter from the letters, and
             # recursively check the child nodes of this node.
             assert n.letter is not None
-            cur_letters = remove_first(n.letter, cur_letters)
+            sub_letters = remove_first(n.letter, letters)
             child_list = list(n.children.values())
-            matches.extend(check_nodes(cur_letters, child_list))
+            matches.extend(check_nodes(sub_letters, child_list))
 
         return matches
 
