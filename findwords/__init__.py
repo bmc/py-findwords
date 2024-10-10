@@ -480,6 +480,8 @@ def interactive_mode(
         if len(line) == 0:
             return False
 
+        exit = False
+
         match line.strip():
             case s if len(s) == 0:
                 pass
@@ -492,13 +494,13 @@ def interactive_mode(
             case s if s[0] == InternalCommand.RERUN:
                 # Special case: This is a prefix, followed by a history
                 # item number.
-                handle_history_rerun(s)
+                exit = handle_history_rerun(s)
             case s if s[0] == INTERNAL_COMMAND_PREFIX:
                 print(f'"{s}" is an unknown command.')
             case s:
                 find_matches_for_inputs(s)
 
-        return False
+        return exit
 
     def handle_history_rerun(line: str) -> bool:
         """
@@ -532,6 +534,7 @@ def interactive_mode(
                     print(f"There's no history item #{n}.")
                 else:
                     exit = rerun(cmd)
+
             case _:
                 print(
                     f"{InternalCommand.RERUN.value} must either be followed "
