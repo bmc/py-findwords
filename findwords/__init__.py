@@ -16,7 +16,7 @@ from termcolor import colored
 
 
 NAME = "findwords"
-VERSION = "0.0.10"
+VERSION = "1.0.0"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10000
 # Note that Python's readline library can be based on GNU Readline
@@ -67,6 +67,8 @@ class TrieNode:
     5. Get all the children of node "a", and recursively match against
        "abehlpt", etc.
     6. Then, go back and do the same thing with the "b", then the "e", etc.
+
+    See find_matches() for algorithmic details.
     """
 
     letter: str | None = field(default=None)
@@ -76,7 +78,7 @@ class TrieNode:
 
 class InternalCommand(StrEnum):
     """
-    Commands that can be issued interactively. All of them begin with "."
+    Commands that can be issued interactively.
     """
 
     EXIT = f"{INTERNAL_COMMAND_PREFIX}exit"
@@ -109,7 +111,7 @@ HELP_EPILOG = (
 
 
 # Will be changed to something else if -q is specified.
-msg: Callable[[str], None] = print
+verbose_msg: Callable[[str], None] = print
 
 
 match os.environ.get("COLUMNS"):
@@ -184,13 +186,13 @@ def load_dictionary(dict_path: Path) -> TrieNode:
     total_loaded = 0
     unique_words: set[str] = set()
     with open(dict_path) as f:
-        msg(f'Loading dictionary "{dict_path}".')
+        verbose_msg(f'Loading dictionary "{dict_path}".')
         for line in f.readlines():
             word = line.strip()
             try:
                 check_string(word, 1)
             except ValueError as e:
-                msg(f'*** Skipping word "{word}": {e}')
+                verbose_msg(f'*** Skipping word "{word}": {e}')
                 continue
 
             if word in unique_words:
@@ -200,7 +202,7 @@ def load_dictionary(dict_path: Path) -> TrieNode:
             add_word(word, root)
             total_loaded += 1
 
-    msg(f"Loaded {total_loaded:,} words.")
+    verbose_msg(f"Loaded {total_loaded:,} words.")
 
     return root
 
@@ -212,7 +214,7 @@ def init_readline_history(history_path: Path) -> None:
     :param history_path: Path of the history file. It doesn't have to exist.
     """
     if history_path.exists():
-        msg(f'Loading history from "{history_path}".')
+        verbose_msg(f'Loading history from "{history_path}".')
         readline.read_history_file(str(history_path))
         # default history len is -1 (infinite), which may grow unruly
 
@@ -227,15 +229,15 @@ def init_readline_bindings() -> None:
     """
     if (readline.__doc__ is not None) and ("libedit" in readline.__doc__):
         init_file = EDITLINE_BINDINGS_FILE
-        msg(f"Using editline (libedit).")
+        verbose_msg(f"Using editline (libedit).")
         completion_binding = "bind '^I' rl_complete"
     else:
         init_file = READLINE_BINDINGS_FILE
-        msg(f"Using GNU readline.")
+        verbose_msg(f"Using GNU readline.")
         completion_binding = "Control-I: rl_complete"
 
     if init_file.exists():
-        msg(f'Loading readline bindings from "{init_file}".')
+        verbose_msg(f'Loading readline bindings from "{init_file}".')
         readline.read_init_file(init_file)
 
     readline.parse_and_bind(completion_binding)
@@ -646,9 +648,9 @@ def main(
     supported. If no words are specified on the command line, findwords prompts
     interactively for them, using readline().
     """
-    global msg
+    global verbose_msg
     if not verbose:
-        msg = lambda _: None
+        verbose_msg = lambda _: None
 
     trie = load_dictionary(Path(dictionary))
     if len(letter_list) > 0:
