@@ -78,28 +78,33 @@ class InternalCommand(StrEnum):
     """
     Commands that can be issued interactively. All of them begin with "."
     """
+
     EXIT = f"{INTERNAL_COMMAND_PREFIX}exit"
     HELP = f"{INTERNAL_COMMAND_PREFIX}help"
     HISTORY = f"{INTERNAL_COMMAND_PREFIX}history"
-    RERUN = "!" # special case: this is a prefix
+    RERUN = "!"  # special case: this is a prefix
 
 
 # This is a series of (command, explanation) tuples, used to generate help
 # output.
-HELP: Sequence[Tuple[str, str]]  = (
+HELP: Sequence[Tuple[str, str]] = (
     (InternalCommand.EXIT.value, f"Quit {NAME}. You can also use Ctrl-D."),
     (InternalCommand.HELP.value, "This output."),
     (InternalCommand.HISTORY.value, "Show the command and word history."),
-    (f"{InternalCommand.RERUN.value}<n>",
-     ("Rerun command <n> from the history. "
-     f"{InternalCommand.RERUN.value}{InternalCommand.RERUN.value} reruns the "
-     "most recent command.")),
+    (
+        f"{InternalCommand.RERUN.value}<n>",
+        (
+            "Rerun command <n> from the history. "
+            f"{InternalCommand.RERUN.value}{InternalCommand.RERUN.value} reruns the "
+            "most recent command."
+        ),
+    ),
 )
 
 HELP_EPILOG = (
     f'Anything not starting with "{INTERNAL_COMMAND_PREFIX}" or '
     f'"{InternalCommand.RERUN.value}" is interpreted as letters to be matched '
-    'against dictionary words.'
+    "against dictionary words."
 )
 
 
@@ -240,6 +245,7 @@ def init_readline_completion() -> None:
     """
     Initialize readline completion for "." (internal) commands.
     """
+
     def command_completer(text: str, state: int) -> str | None:
         """
         Completes internal commands starting with "."
@@ -328,6 +334,7 @@ def show_history(total: int = 0) -> None:
     :param total: Limit to number of entries to show, or 0 for all. NOT
                   CURRENTLY USED. Hook for future enhancement.
     """
+
     def format_history_item(line: str, index: int) -> str:
         """
         Format a single history line.
@@ -443,6 +450,7 @@ def interactive_mode(
     :param trie: the loaded dictionary trie
     :param history_path: path to the history file to use
     """
+
     def find_matches_for_inputs(line: str) -> None:
         # Break the line up into multiple words, to allow more than one
         # word per line.
@@ -490,7 +498,6 @@ def interactive_mode(
 
         return False
 
-
     def handle_history_rerun(line: str) -> bool:
         """
         Parse and process the "history rerun" command, returning
@@ -524,8 +531,10 @@ def interactive_mode(
                 else:
                     exit = rerun(cmd)
             case _:
-                print(f"{InternalCommand.RERUN.value} must either be followed "
-                      f"by a number or by {InternalCommand.RERUN.value}")
+                print(
+                    f"{InternalCommand.RERUN.value} must either be followed "
+                    f"by a number or by {InternalCommand.RERUN.value}"
+                )
 
         return exit
 
