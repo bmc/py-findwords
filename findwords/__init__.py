@@ -12,7 +12,7 @@ from termcolor import colored
 
 
 NAME = "findwords"
-VERSION = "0.0.8"
+VERSION = "0.0.9"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10000
 # Note that Python's readline library can be based on GNU Readline
@@ -218,10 +218,9 @@ def show_matches(matches: list[str]) -> None:
     grouped = itertools.groupby(sorted_matches, key=len)
 
     # groupby() returns a (key, group_list) pair. The key is the length, which
-    # we can ignore here. The values should already be sorted within each
-    # group.
+    # we can ignore here.
     for _, group in grouped:
-        for word in group:
+        for word in sorted(group):
             print(word)
 
         print()
