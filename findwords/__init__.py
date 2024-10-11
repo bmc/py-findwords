@@ -110,7 +110,13 @@ class InternalCommand(StrEnum):
 HELP: Sequence[Tuple[str, str]] = (
     (InternalCommand.EXIT.value, f"Quit {NAME}. You can also use Ctrl-D."),
     (InternalCommand.HELP.value, "This output."),
-    (InternalCommand.HISTORY.value, "Show the command and word history."),
+    (
+        f"{InternalCommand.HISTORY.value} [<n>]",
+        (
+          "Show the command and word history. If <n> is specified, show only "
+          "the last <n> history items."
+        )
+    ),
     (
         f"{InternalCommand.RERUN.value}<n>",
         (
@@ -364,7 +370,7 @@ def show_history(total: int = 0) -> None:
         :param line: The history line
         :param index: The index (number) of the history line
         """
-        return f"{index:5d}. {line}"
+        return f"{index:5d}) {line}"
 
     history_items = get_full_history()
     match total:
@@ -473,10 +479,9 @@ def interactive_mode(
     :param history_path: path to the history file to use
     """
 
-    def find_matches_for_inputs(line: str) -> None:
+    def find_matches_for_inputs(strings: list[str]) -> None:
         # Break the line up into multiple words, to allow more than one
         # word per line.
-        strings = line.split()
         use_prefix = len(strings) > 1
         for s in strings:
             try:
@@ -502,23 +507,38 @@ def interactive_mode(
 
         exit = False
 
-        match line.strip():
-            case s if len(s) == 0:
+        tokens = line.strip().split()
+        match tokens:
+            case []:
                 pass
-            case InternalCommand.EXIT:
+            case [InternalCommand.EXIT.value]:
                 return True
-            case InternalCommand.HELP:
+            case [InternalCommand.EXIT.value, *_]:
+                print(f"{InternalCommand.EXIT.value} takes no arguments.")
+            case [InternalCommand.HELP.value]:
                 show_help()
-            case InternalCommand.HISTORY:
+            case [InternalCommand.HELP.value, *_]:
+                print(f"{InternalCommand.HELP.value} takes no arguments.")
+            case [InternalCommand.HISTORY.value]:
                 show_history()
-            case s if s[0] == InternalCommand.RERUN:
+            case [InternalCommand.HISTORY.value, n]:
+                try:
+                    n = int(n)
+                    if n <= 0:
+                        raise ValueError("Must be positive")
+                    show_history(n)
+                except ValueError:
+                    print(f"{InternalCommand.HISTORY.value}: Invalid number.")
+            case [InternalCommand.HISTORY.value, *_]:
+                print(f"{InternalCommand.HISTORY.value}: Too many parameters.")
+            case s if s[0] == InternalCommand.RERUN.value:
                 # Special case: This is a prefix, followed by a history
                 # item number.
                 exit = handle_history_rerun(s)
-            case s if s[0] == INTERNAL_COMMAND_PREFIX:
+            case [s, *_] if s[0] == INTERNAL_COMMAND_PREFIX:
                 print(f'"{s}" is an unknown command.')
-            case s:
-                find_matches_for_inputs(s)
+            case strings:
+                find_matches_for_inputs(strings)
 
         return exit
 
