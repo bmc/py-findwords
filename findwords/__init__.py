@@ -44,6 +44,13 @@ ART_FONTS = (
     "tarty2",
     "tarty3",
 )
+BANNER_COLORS = (
+    "cyan",
+    "red",
+    "black",
+    "blue",
+    "green",
+)
 
 
 @dataclass
@@ -556,7 +563,12 @@ def interactive_mode(
 
     init_readline(history_path)
 
-    art.tprint(NAME, random.choice(ART_FONTS))
+    rng = random.SystemRandom()
+    # Print the banner using a random art font and a random terminal foreground
+    # color.
+    print(colored(
+        art.text2art(NAME, rng.choice(ART_FONTS)), rng.choice(BANNER_COLORS)
+    ))
     print(f"Version {VERSION}")
     print(f"Enter one or more strings, separated by white space.")
     print(f'Type Ctrl-D or "{InternalCommand.EXIT.value}" to exit.')
