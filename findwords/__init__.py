@@ -19,7 +19,7 @@ from termcolor import colored
 NAME = "findwords"
 VERSION = "1.0.1"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
-HISTORY_LENGTH = 10000
+HISTORY_LENGTH = 10_000
 # Note that Python's readline library can be based on GNU Readline
 # or the BSD Editline library, and it's not selectable. It's whatever
 # has been compiled in. They use different initialization files, so we'll

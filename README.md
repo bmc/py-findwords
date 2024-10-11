@@ -65,6 +65,10 @@ can specify one or more words (strings) on the command line, and it'll process
 those and exit. If you omit words from the command, it'll go into interactive
 mode, where you can enter as many words as you want.
 
+Interactive mode uses the `readline` library, which means it keeps a history
+of all previously entered strings and commands, up to a maximum of 10,000
+entries. The history is stored in file `$HOME/.findwords-history`.
+
 ## Maintenance Warning
 
 I built this tool for my personal use. It replaces an older version I'd written
