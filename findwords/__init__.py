@@ -4,6 +4,7 @@ from enum import StrEnum
 import itertools
 import os
 from pathlib import Path
+import random
 import re
 import readline
 import string
@@ -16,7 +17,7 @@ from termcolor import colored
 
 
 NAME = "findwords"
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10000
 # Note that Python's readline library can be based on GNU Readline
@@ -33,6 +34,16 @@ PROMPT = colored("findwords> ", "cyan", attrs=["bold"])
 DEFAULT_SCREEN_WIDTH: int = 79
 INTERNAL_COMMAND_PREFIX = "."
 ALL_DIGITS = re.compile(r"^\d+$")
+ART_FONTS = (
+    "big",
+    "chunky",
+    "cybermedium",
+    "smslant",
+    "speed",
+    "standard",
+    "tarty2",
+    "tarty3",
+)
 
 
 @dataclass
@@ -545,7 +556,7 @@ def interactive_mode(
 
     init_readline(history_path)
 
-    art.tprint(NAME)
+    art.tprint(NAME, random.choice(ART_FONTS))
     print(f"Version {VERSION}")
     print(f"Enter one or more strings, separated by white space.")
     print(f'Type Ctrl-D or "{InternalCommand.EXIT.value}" to exit.')
