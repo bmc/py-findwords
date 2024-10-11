@@ -322,7 +322,9 @@ def show_help() -> None:
 
     for cmd, text in HELP:
         cmd_str = cmd
-        padded_prefix = cmd_str.ljust(prefix_width)
+        padded_prefix = colored(
+            cmd_str.ljust(prefix_width), "red", attrs=["bold"]
+        )
         text_lines = textwrap.wrap(text, width=text_width)
         print(f"{padded_prefix}{separator}{text_lines[0]}")
         for text_line in text_lines[1:]:
