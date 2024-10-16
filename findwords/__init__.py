@@ -17,7 +17,7 @@ from termcolor import colored
 
 
 NAME = "findwords"
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10_000
 # Note that Python's readline library can be based on GNU Readline
@@ -593,14 +593,23 @@ def interactive_mode(
 
         return exit
 
+    def print_banner() -> None:
+        # Print the banner using a random art font and a random terminal
+        # foreground color. The generated figlet has some blank lines (vertical
+        # padding at the end, which we will remove.
+        banner: str = art.text2art(NAME, rng.choice(ART_FONTS)) # type: ignore
+        banner_lines: list[str] = banner.split("\n")
+        color: str = rng.choice(BANNER_COLORS)
+        while (len(banner_lines) > 0) and (banner_lines[-1].strip() == ""):
+            banner_lines.pop()
+
+        print(colored("\n".join(banner_lines), color))
+        print()
+
     init_readline(history_path)
 
     rng = random.SystemRandom()
-    # Print the banner using a random art font and a random terminal foreground
-    # color.
-    print(colored(
-        art.text2art(NAME, rng.choice(ART_FONTS)), rng.choice(BANNER_COLORS)
-    ))
+    print_banner()
     print(f"Version {VERSION}")
     print(f"Enter one or more strings, separated by white space.")
     print(f'Type Ctrl-D or "{InternalCommand.EXIT.value}" to exit.')
