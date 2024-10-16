@@ -17,7 +17,7 @@ from termcolor import colored
 
 
 NAME = "findwords"
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10_000
 # Note that Python's readline library can be based on GNU Readline
@@ -92,6 +92,61 @@ class TrieNode:
     letter: str | None = field(default=None)
     children: dict[str, Self] = field(default_factory=dict)
     words: set[str] = field(default_factory=set)
+
+    def find_matches(self: Self, letters: str, min_length: int) -> list[str]:
+        """
+        Given a group of letters, find all words in the dictionary that can
+        be made from them. This method must be called on the root node, or
+        it will not be able to search the entire dictionary. It does not,
+        however, check that it's being called on the root node.
+
+        :param letters: the letters to check
+        :param root: the root of the loaded dictionary trie
+
+        :return: a possibly empty list of words that match
+        """
+
+        def search(letters: str, nodes: list[TrieNode]) -> list[str]:
+            """
+            Recursive function to search for matches.
+
+            :param letters: the letters to match
+            :param nodes: the (child) nodes to search
+
+            :return: a list of words that match
+            """
+            def remove_first(letter: str, letters: str) -> str:
+                if (i := letters.index(letter)) != -1:
+                    return letters[:i] + letters[i + 1 :]
+                else:
+                    # Letter not found. Just return the string.
+                    return letters
+
+            # Filter the list of nodes so that we only consider the ones
+            # that matter.
+            nodes = [
+                n for n in nodes if n.letter is not None and n.letter in letters
+            ]
+
+            matches = []
+            # Now, recursively check each one.
+            for n in nodes:
+                # This node's children represent possible paths. Add any words
+                # in this node, since it's a match.
+                matches.extend(list(n.words))
+
+                # Remove the first instance of n.letter from the letters, and
+                # recursively check the child nodes of this node.
+                assert n.letter is not None
+                sub_letters = remove_first(n.letter, letters)
+                child_list = list(n.children.values())
+                matches.extend(search(sub_letters, child_list))
+
+            return matches
+
+        sorted_letters = "".join(sorted(letters.lower()))
+        all_matches = search(sorted_letters, list(self.children.values()))
+        return [m for m in all_matches if len(m) >= min_length]
 
 
 class InternalCommand(StrEnum):
@@ -422,51 +477,6 @@ def show_matches(matches: list[str]) -> None:
         print()
 
 
-def find_matches(letters: str, root: TrieNode, min_length: int) -> list[str]:
-    """
-    Given a group of letters, find all words in the dictionary that can
-    be made from them.
-
-    :param letters: the letters to check
-    :param root: the root of the loaded dictionary trie
-
-    :return: a possibly empty list of words that match
-    """
-
-    def check_nodes(letters: str, nodes: list[TrieNode]) -> list[str]:
-        def remove_first(letter: str, letters: str) -> str:
-            if (i := letters.index(letter)) != -1:
-                return letters[:i] + letters[i + 1 :]
-            else:
-                # Letter not found. Just return the string.
-                return letters
-
-        # Filter the list of nodes so that we only consider the ones
-        # that matter.
-        nodes = [
-            n for n in nodes if n.letter is not None and n.letter in letters
-        ]
-
-        matches = []
-        # Now, recursively check each one.
-        for n in nodes:
-            # This node's children represent possible paths. Add any words
-            # in this node, since it's a match.
-            matches.extend(list(n.words))
-
-            # Remove the first instance of n.letter from the letters, and
-            # recursively check the child nodes of this node.
-            assert n.letter is not None
-            sub_letters = remove_first(n.letter, letters)
-            child_list = list(n.children.values())
-            matches.extend(check_nodes(sub_letters, child_list))
-
-        return matches
-
-    sorted_letters = "".join(sorted(letters.lower()))
-    all_matches = check_nodes(sorted_letters, list(root.children.values()))
-    return [m for m in all_matches if len(m) >= min_length]
-
 
 def interactive_mode(
     trie: TrieNode, history_path: Path, min_length: int
@@ -495,7 +505,7 @@ def interactive_mode(
                 print(multiple_matches_header(s))
                 print()
 
-            show_matches(find_matches(s, trie, min_length))
+            show_matches(trie.find_matches(s, min_length))
 
     def handle_command(line: str) -> bool:
         """
@@ -634,7 +644,7 @@ def once_and_done(
             print(letters)
             print()
 
-        show_matches(find_matches(letters, trie, min_length))
+        show_matches(trie.find_matches(letters, min_length))
         if header_and_sep:
             print("-" * 50)
 
