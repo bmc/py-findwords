@@ -7,6 +7,7 @@
 # Valid targets: build, clean
 
 usage() {
+  # print usage to stderr and exit.
   echo "Usage: $0 target ..." >&2
   echo "       $0 -h" >&2
   echo "Valid targets: build, clean, docker >&2" >&2
@@ -15,6 +16,8 @@ usage() {
 }
 
 run() {
+  # Echo a shell command, run it, check the return code, and print an
+  # error if the command fails. Returns 1 if the command fails, 0 otherwise.
   echo "+ $1"
   eval $1
   rc=$?
@@ -25,15 +28,24 @@ run() {
   fi
 }
 
+while getopts ":h" opt; do
+  case $opt in
+    h)
+      usage
+      ;;
+    *)
+      echo "Invalid option: -$OPTARG" >&2
+      usage
+      ;;
+  esac
+done
+shift $((OPTIND -1))
+
 case $# in
   0)
     targets="clean build"
     ;;
   1)
-    if [ "$1" = "-h" ]
-    then
-      usage
-    fi
     targets="$1"
     ;;
   *)
