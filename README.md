@@ -84,7 +84,9 @@ maintaining it. Don't expect me to jump on feature requests or bug reports.
 tested `findwords` on Windows, and I likely won't. I dislike doing development
 on Windows. `findwords` runs fine for me on Linux and MacOS. If it somehow
 works for you on Windows, that's terrific (but unlikely). In any case, I'm
-unwilling to spend any time getting it to work there.
+unwilling to spend any time getting it to work there. (You can always just
+build the Docker image and run it under Docker on Windows. See the `docker`
+subdirectory.)
 
 ## License
 
