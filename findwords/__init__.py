@@ -231,6 +231,7 @@ def check_string(s: str, min_length: int) -> bool:
 
     return True
 
+
 def time_op(func: Callable[..., Any], *args: Any, **kw: Any) -> Tuple[int, Any]:
     """
     Time a function call, in milliseconds.
@@ -537,7 +538,8 @@ def interactive_mode(
 
         exit = False
 
-        tokens = line.strip().split()
+        line = line.strip()
+        tokens = line.split()
         match tokens:
             case []:
                 pass
@@ -561,10 +563,10 @@ def interactive_mode(
                     print(f"{InternalCommand.HISTORY.value}: Invalid number.")
             case [InternalCommand.HISTORY.value, *_]:
                 print(f"{InternalCommand.HISTORY.value}: Too many parameters.")
-            case s if s[0] == InternalCommand.RERUN.value:
+            case [s] if s[0] == InternalCommand.RERUN.value:
                 # Special case: This is a prefix, followed by a history
                 # item number.
-                exit = handle_history_rerun(s)
+                exit = handle_history_rerun(line)
             case [s, *_] if s[0] == INTERNAL_COMMAND_PREFIX:
                 print(f'"{s}" is an unknown command.')
             case strings:
