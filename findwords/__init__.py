@@ -9,7 +9,8 @@ import re
 import readline
 import string
 import textwrap
-from typing import Self, Callable, Sequence, Tuple
+from time import time
+from typing import Self, Callable, Sequence, Tuple, Any
 
 import art
 import click
@@ -17,7 +18,7 @@ from termcolor import colored
 
 
 NAME = "findwords"
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10_000
 # Note that Python's readline library can be based on GNU Readline
@@ -230,6 +231,21 @@ def check_string(s: str, min_length: int) -> bool:
 
     return True
 
+def time_op(func: Callable[..., Any], *args: Any, **kw: Any) -> Tuple[int, Any]:
+    """
+    Time a function call, in milliseconds.
+
+    :param func: the function to call
+    :param args: positional arguments to pass to the function
+    :param kw: keyword arguments to pass to the function
+
+    :return: a tuple of the elapsed milliseconds and the result of the call
+    """
+    start = time()
+    result = func(*args, **kw)
+    elapsed = int((time() - start) * 1000)
+    return elapsed, result
+
 
 def add_word(word: str, root: TrieNode) -> None:
     """
@@ -262,26 +278,30 @@ def load_dictionary(dict_path: Path) -> TrieNode:
     """
     root = TrieNode()
 
-    total_loaded = 0
-    unique_words: set[str] = set()
-    with open(dict_path) as f:
-        verbose_msg(f'Loading dictionary "{dict_path}".')
-        for line in f.readlines():
-            word = line.strip()
-            try:
-                check_string(word, 1)
-            except ValueError as e:
-                verbose_msg(f'*** Skipping word "{word}": {e}')
-                continue
+    def do_load() -> int:
+        total = 0
+        unique_words: set[str] = set()
+        with open(dict_path) as f:
+            verbose_msg(f'Loading dictionary "{dict_path}".')
+            for line in f.readlines():
+                word = line.strip()
+                try:
+                    check_string(word, 1)
+                except ValueError as e:
+                    verbose_msg(f'*** Skipping word "{word}": {e}')
+                    continue
 
-            if word in unique_words:
-                continue
+                if word in unique_words:
+                    continue
 
-            unique_words.add(word)
-            add_word(word, root)
-            total_loaded += 1
+                unique_words.add(word)
+                add_word(word, root)
+                total += 1
 
-    verbose_msg(f"Loaded {total_loaded:,} words.")
+        return total
+
+    elapsed, total = time_op(do_load)
+    verbose_msg(f"Loaded {total:,} words in {elapsed / 1000:.2f} second(s).")
 
     return root
 
