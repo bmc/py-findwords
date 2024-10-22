@@ -69,6 +69,10 @@ Interactive mode uses the `readline` library, which means it keeps a history
 of all previously entered strings and commands, up to a maximum of 10,000
 entries. The history is stored in file `$HOME/.findwords-history`.
 
+You can capture your desired defaults for most of the command-line options
+via a configuration file, `$HOME/.findwords.toml`. See the sample
+`findwords.toml` configuration file in at the top of this repo.
+
 ## Maintenance Warning
 
 I built this tool for my personal use. It replaces an older version I'd written
