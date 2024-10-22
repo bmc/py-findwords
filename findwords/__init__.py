@@ -20,7 +20,7 @@ from termcolor import colored
 
 
 NAME = "findwords"
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10_000
 # Note that Python's readline library can be based on GNU Readline
@@ -283,11 +283,12 @@ def add_word(word: str, root: TrieNode) -> None:
     node.words.add(word)
 
 
-def load_dictionary(dict_path: Path) -> TrieNode:
+def load_dictionary(dict_path: Path, min_length: int) -> TrieNode:
     """
     Load the dictionary into a trie.
 
     :param dict_path: path to the dictionary file to load
+    :param min_length: minimum length of words to load
 
     :return: the root of the dictionary trie
     """
@@ -300,6 +301,9 @@ def load_dictionary(dict_path: Path) -> TrieNode:
             verbose_msg(f'Loading dictionary "{dict_path}".')
             for line in f.readlines():
                 word = line.strip()
+                if len(word) < min_length:
+                    continue
+
                 try:
                     check_string(word, 1)
                 except ValueError as e:
@@ -863,7 +867,7 @@ def main(
         load_config_file(config_path, config_must_exist)
     )
 
-    trie = load_dictionary(params.dictionary)
+    trie = load_dictionary(params.dictionary, params.min_length)
     if len(letter_list) > 0:
         once_and_done(trie, letter_list, params.min_length)
     else:
