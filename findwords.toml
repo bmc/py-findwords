@@ -1,0 +1,22 @@
+# Sample findwords configuration file. If you install a configuration file
+# like this one in ~/.findwords.toml, it'll be used as the default settings
+# for the findwords program. You can override these settings on the command
+# line and/or via environment variables (where supported).
+
+[findwords]
+# The path to the dictionary to use. You can use ~ to refer to your home
+# directory. Can be overridden by environment variable FINDWORDS_DICTIONARY
+# or by the -d (--dictionary) command line option.
+dictionary = "~/etc/findwords/dict.txt"
+
+# The path to the readline history file, used in interactive mode. You can
+# use ~ to refer to your home directory. Can be overridden by environment
+# variable FINDWORDS_HISTORY or by the -H (--history) command line option.
+history = "~/.findwords_history"
+
+# The minimum length of words to find. Can be overridden by -m (--min-length)
+# on the command line.
+min_length = 2
+
+# Whether or not to print verbose messages.
+verbose = false

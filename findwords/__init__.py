@@ -1,4 +1,5 @@
 import atexit
+import dataclasses
 from dataclasses import dataclass, field
 from enum import StrEnum
 import itertools
@@ -9,6 +10,7 @@ import re
 import readline
 import string
 import textwrap
+import tomllib
 from time import time
 from typing import Self, Callable, Sequence, Tuple, Any
 
@@ -18,7 +20,7 @@ from termcolor import colored
 
 
 NAME = "findwords"
-VERSION = "1.0.4"
+VERSION = "1.1.0"
 CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 HISTORY_LENGTH = 10_000
 # Note that Python's readline library can be based on GNU Readline
@@ -29,8 +31,9 @@ EDITLINE_BINDINGS_FILE = Path("~/.editrc").expanduser()
 READLINE_BINDINGS_FILE = Path("~/.inputrc").expanduser()
 DEFAULT_SCREEN_WIDTH = 79
 DEFAULT_HISTORY_FILE = Path("~/.findwords-history").expanduser()
-DEFAULT_CONFIG_FILE = Path("~/.findwords.cfg").expanduser()
+DEFAULT_CONFIG_FILE = Path("~/.findwords.toml").expanduser()
 DEFAULT_DICTIONARY = Path("~/etc/findwords/dict.txt").expanduser()
+DEFAULT_MIN_LENGTH = 2
 PROMPT = colored("findwords> ", "cyan", attrs=["bold"])
 DEFAULT_SCREEN_WIDTH: int = 79
 INTERNAL_COMMAND_PREFIX = "."
@@ -52,6 +55,17 @@ BANNER_COLORS = (
     "blue",
     "green",
 )
+
+
+@dataclass(frozen=True)
+class Params:
+    """
+    Class to hold command line and configuration parameters.
+    """
+    dictionary: Path
+    history_path: Path
+    min_length: int
+    verbose: bool
 
 
 @dataclass
@@ -680,41 +694,88 @@ def once_and_done(
             print("-" * 50)
 
 
+def load_config_file(config_path: Path, must_exist: bool) -> Params:
+    if not config_path.exists():
+        if must_exist:
+            raise click.ClickException(
+                f"Configuration file {config_path} not found."
+            )
+        config_dict = {"findwords": {}}
+    else:
+        with open(config_path, mode="rb") as f:
+            config_dict = tomllib.load(f)
+
+    if (findwords := config_dict.get("findwords")) is None:
+        raise click.ClickException(
+            f'Configuration file "{config_path}" is missing the "findwords" '
+            "section."
+        )
+
+    def get_path(d: dict[str, Any], key: str, default: Path) -> Path:
+        path = d.get(key)
+        if path is not None:
+            path = Path(path).expanduser()
+        else:
+            path = default
+
+        return path
+
+    return Params(
+        dictionary=get_path(findwords, "dictionary", DEFAULT_DICTIONARY),
+        history_path=get_path(findwords, "history", DEFAULT_HISTORY_FILE),
+        min_length=findwords.get("min_length", DEFAULT_MIN_LENGTH),
+        verbose=findwords.get("verbose", False),
+    )
+
+
 def validate_min_length(ctx: click.Context, param: str, value: int) -> int:
-    if value <= 0:
-        raise click.BadParameter(f"{param} must be a positive integer.")
+    print(f"{value=}")
+    if value is not None:
+        if value <= 0:
+            raise click.BadParameter(f"{param} must be a positive integer.")
 
     return value
 
 
-@click.command(name=NAME, context_settings=CLICK_CONTEXT_SETTINGS)
+@click.command(
+    name=NAME,
+    context_settings=CLICK_CONTEXT_SETTINGS,
+    epilog=f"Default configuration file: {DEFAULT_CONFIG_FILE}",
+)
+@click.option(
+    "-c",
+    "--config",
+    type=click.Path(exists=True, dir_okay=False),
+    help="Path to optional configuration file."
+)
 @click.option(
     "-d",
     "--dictionary",
     type=click.Path(exists=True, dir_okay=False),
     envvar="FINDWORDS_DICTIONARY",
-    default=DEFAULT_DICTIONARY,
-    show_default=True,
     help="Path to dictionary to load and use. If not specified, the "
     "FINDWORDS_DICTIONARY environment variable is consulted. If that's "
-    "empty, the default is used.",
+    f'empty, "{DEFAULT_DICTIONARY}" is used.',
 )
 @click.option(
     "-H",
     "--history",
     type=click.Path(dir_okay=False),
-    default=DEFAULT_HISTORY_FILE,
-    show_default=True,
+    envvar="FINDWORDS_HISTORY",
     help="Path to readline history file. Ignored unless no words are specified "
-    "on the command line (i.e., ignored in non-interactive mode).",
+    "on the command line (i.e., ignored in non-interactive mode). If not "
+    "specified on the command line or via the FINDWORDS_HISTORY environment "
+    "variable, the optional configuration file is used. If not specified, "
+    f'"{DEFAULT_HISTORY_FILE}" is used.'
 )
 @click.option(
     "-m",
     "--min-length",
-    default=2,
+    type=int,
     callback=validate_min_length,
-    show_default=True,
-    help="Minimum length of words to find. Must be a positive number.",
+    help="Minimum length of words to find. Must be a positive number. If not "
+    "specified and not in the configuration file, the default is "
+    f"{DEFAULT_MIN_LENGTH}"
 )
 @click.version_option(version=VERSION)
 @click.option(
@@ -725,10 +786,11 @@ def validate_min_length(ctx: click.Context, param: str, value: int) -> int:
 )
 @click.argument("letter_list", nargs=-1, metavar="letters")
 def main(
-    dictionary: str,
+    config: str | None,
+    dictionary: str | None,
     letter_list: list[str],
-    history: str,
-    min_length: int,
+    history: str | None,
+    min_length: int | None,
     verbose: bool,
 ) -> None:
     """
@@ -736,16 +798,62 @@ def main(
     can be made from those letters. Note: Only ASCII characters are currently
     supported. If no words are specified on the command line, findwords prompts
     interactively for them, using readline().
+
+    The dictionary is loaded from a file, which is assumed to be a list of
+    words, one per line.
+
+    You can specify default values for the command line options via a
+    configuration file. If you specify the path to the configuration file,
+    it must exist. If you don't specify a configuration file, findwords will
+    look for a default configuration and load it if it exists. Environment
+    variables, where applicable, override configuration file settings.
+    Command line options override both environment variables and configuration
+    file settings.
     """
+    def apply_command_line_params(params: Params) -> Params:
+        if dictionary is not None:
+            params = dataclasses.replace(
+                params, dictionary=Path(dictionary).expanduser()
+            )
+
+        if history is not None:
+            params = dataclasses.replace(
+                params, dictionary=Path(history).expanduser()
+            )
+
+        if min_length is not None:
+            params = dataclasses.replace(params, min_length=min_length)
+
+        # With verbose, we only apply the command line setting if it's True.
+        if verbose and not params.verbose:
+            params = dataclasses.replace(params, verbose=True)
+
+        return params
+
+
     global verbose_msg
     if not verbose:
         verbose_msg = lambda _: None
 
-    trie = load_dictionary(Path(dictionary))
-    if len(letter_list) > 0:
-        once_and_done(trie, letter_list, min_length)
+    if config is not None:
+        config_must_exist = True
+        config_path = Path(config)
     else:
-        interactive_mode(trie, Path(history), min_length)
+        config_must_exist = False
+        config_path = DEFAULT_CONFIG_FILE
+
+    params = load_config_file(config_path, config_must_exist)
+
+    # Command line options override configuration file settings, if present.
+    params = apply_command_line_params(
+        load_config_file(config_path, config_must_exist)
+    )
+
+    trie = load_dictionary(params.dictionary)
+    if len(letter_list) > 0:
+        once_and_done(trie, letter_list, params.min_length)
+    else:
+        interactive_mode(trie, params.history_path, params.min_length)
 
 
 if __name__ == "__main__":
