@@ -729,7 +729,6 @@ def load_config_file(config_path: Path, must_exist: bool) -> Params:
 
 
 def validate_min_length(ctx: click.Context, param: str, value: int) -> int:
-    print(f"{value=}")
     if value is not None:
         if value <= 0:
             raise click.BadParameter(f"{param} must be a positive integer.")
