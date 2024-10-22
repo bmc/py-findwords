@@ -695,6 +695,18 @@ def once_and_done(
 
 
 def load_config_file(config_path: Path, must_exist: bool) -> Params:
+    """
+    Load the configuration file, if it exists. If it doesn't exist and
+    must_exist is True, raise an exception. (This is the case when the
+    configuration file is specified on the command line.) Otherwise, if it
+    doesn't exist, return a default Params object. If it does exist, load
+    and validate the values, and return a Params object.
+
+    :param config_path: the path to the configuration file
+    :param must_exist: whether the configuration file must exist
+
+    :return: a Params object
+    """
     if not config_path.exists():
         if must_exist:
             raise click.ClickException(
@@ -729,6 +741,9 @@ def load_config_file(config_path: Path, must_exist: bool) -> Params:
 
 
 def validate_min_length(ctx: click.Context, param: str, value: int) -> int:
+    """
+    Click callback to ensure the minimum length is a positive integer.
+    """
     if value is not None:
         if value <= 0:
             raise click.BadParameter(f"{param} must be a positive integer.")
