@@ -27,4 +27,6 @@ RUN sh -c ". ./python/bin/activate; pip install build"
 RUN git clone https://github.com/bmc/py-findwords
 RUN sh -c ". ./python/bin/activate; cd py-findwords; ./build.sh build"
 RUN sh -c ". ./python/bin/activate; pip install py-findwords/dist/*.whl"
+RUN sed 's/^min_length.*$/min_length = 3/' py-findwords/findwords.toml >/home/bmc/.findwords.toml
+
 CMD /usr/bin/zsh -i
