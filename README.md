@@ -39,6 +39,10 @@ dictionary. Possible dictionaries include:
   assuming you can find a copy in the right format.
 * Something like `/usr/dict/words` (or equivalent) on Unix-like systems
   will also do (e.g., `/usr/share/dict/words` on MacOS).
+* `words_alpha.txt` from
+  [github.com/dwyl/english-words](https://github.com/dwyl/english-words) is
+  also a reasonable choice.
+
 
 `findwords` loads the dictionary into a lookup trie when it starts up.
 
