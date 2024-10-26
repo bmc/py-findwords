@@ -3,7 +3,8 @@ test `findwords` in a Linux-like environment without leaving my current
 development environment (which is MacOS). It's only used during development
 and testing.
 
-Run `./build.sh` to build the Docker image locally.
+Run `./build.sh` to build the Docker image locally. Use `./build.sh --no-cache`
+to force a build that doesn't use the Docker cache.
 
 Run, from the main `py-findwords` directory, as:
 
