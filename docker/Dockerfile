@@ -26,11 +26,13 @@ RUN ["sh", "-c", "grep -E '^[a-z]+$' /usr/share/dict/words >/home/bmc/etc/findwo
 RUN ["wget", "-O", "/home/bmc/etc/findwords/dict.txt", "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"]
 RUN ["/usr/bin/python3", "-m", "venv", "python"]
 RUN ["sh", "-c", ". ./python/bin/activate; pip install build"]
+# Check out the py-findwords repository, build it, and install it, so there's
+# a locally installed version of the package.
 RUN ["git", "clone", "https://github.com/bmc/py-findwords"]
 RUN ["sh", "-c", ". ./python/bin/activate; cd py-findwords; ./build.sh build"]
 RUN ["sh", "-c", ". ./python/bin/activate; pip install py-findwords/dist/*.whl"]
 RUN ["sh", "-c", "sed 's/^min_length.*$/min_length = 3/' py-findwords/findwords.toml >/home/bmc/.findwords.toml"]
-# Remove the locally checked out version, since we'll mount the actual source
+# Remove the locally checked out repo, since we'll mount the actual source
 # when we run the container.
 RUN ["rm", "-rf", "py-findwords"]
 
