@@ -1,8 +1,8 @@
 # This Dockerfile is used to build an image in which I can easily test
 # sqlshell on a Linux distribution.
 
-# 3.12 on Debian bookworm
-FROM python:bookworm
+# 3.13 on Debian bookworm
+FROM python:3.13-bookworm
 
 RUN ["apt-get", "update"]
 RUN ["apt", "-y", "install", "git"]
@@ -24,7 +24,7 @@ COPY zshrc /home/bmc/.zshrc
 RUN mkdir -p /home/bmc/etc/findwords
 RUN ["sh", "-c", "grep -E '^[a-z]+$' /usr/share/dict/words >/home/bmc/etc/findwords/wamerican.txt"]
 RUN ["wget", "-O", "/home/bmc/etc/findwords/dict.txt", "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"]
-RUN ["/usr/bin/python3", "-m", "venv", "python"]
+RUN ["/usr/local/bin/python3", "-m", "venv", "python"]
 RUN ["sh", "-c", ". ./python/bin/activate; pip install build"]
 # Check out the py-findwords repository, build it, and install it, so there's
 # a locally installed version of the package.
