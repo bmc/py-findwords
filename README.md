@@ -64,18 +64,19 @@ hyphens, and the like.
 ## Running `findwords`
 
 Once you've installed it, just type `findwords` in a terminal window.
-Use `findwords -h` (or `findwords --help`) to get usage information. You
-can specify one or more words (strings) on the command line, and it'll process
-those and exit. If you omit words from the command, it'll go into interactive
-mode, where you can enter as many words as you want.
+`findwords` accepts several command line options; use `findwords -h` (or
+`findwords --help`) to get usage information. You can specify one or more words
+(strings) on the command line, and it'll process those and exit. If you omit
+words from the command, `findwords` will go into interactive mode, where you
+can enter as many words as you want.
 
 Interactive mode uses the `readline` library, which means it keeps a history
 of all previously entered strings and commands, up to a maximum of 10,000
-entries. The history is stored in file `$HOME/.findwords-history`.
+entries. By default, the history is stored in file `$HOME/.findwords-history`.
 
 You can capture your desired defaults for most of the command-line options
 via a configuration file, `$HOME/.findwords.toml`. See the sample
-`findwords.toml` configuration file in at the top of this repo.
+`findwords.toml` configuration file in at the top of this repo for details.
 
 ## Maintenance Warning
 
