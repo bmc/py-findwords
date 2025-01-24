@@ -19,11 +19,11 @@ $ git clone https://github.com/bmc/py-findwords.git
 $ pip install build
 $ cd py-findwords
 $ ./build.sh clean build
-$ pip install dist/findwords-1.0.0-py3-none-any.whl
+$ pip install dist/findwords-1.1.1-py3-none-any.whl
 ```
 
-It'll install a `findwords` command in your current Python environment.
-(That environment really should be a virtual environment.)
+It'll install a `findwords` command in your current Python environment's
+`bin` directory. (I recommend that you use a Python virtual environment.)
 
 ## The dictionary
 
