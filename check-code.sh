@@ -26,6 +26,8 @@ do
     pyright $i || die "pyright failed"
   fi
 
+  # pycheck is a personal tool in a private repo. Feel
+  # free to comment this out.
   if [ "$i" = "." ]
   then
     echo "pycheck " findwords/*.py
