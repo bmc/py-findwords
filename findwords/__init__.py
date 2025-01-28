@@ -131,6 +131,11 @@ class TrieNode:
             :return: a list of words that match
             """
             def remove_first(letter: str, letters: str) -> str:
+                """
+                Remove the first letter matching "letter" from the supplied
+                string of letters, if it exists. If it doesn't exist, just
+                return "letters".
+                """
                 if (i := letters.index(letter)) != -1:
                     return letters[:i] + letters[i + 1 :]
                 else:
@@ -295,6 +300,10 @@ def load_dictionary(dict_path: Path, min_length: int) -> TrieNode:
     root = TrieNode()
 
     def do_load() -> int:
+        """
+        Load the dictionary into the trie. This is the actual workhorse
+        function, wrapped by time_op() in the parent function.
+        """
         total = 0
         unique_words: set[str] = set()
         with open(dict_path) as f:
@@ -529,8 +538,10 @@ def interactive_mode(
     """
 
     def find_matches_for_inputs(strings: list[str]) -> None:
-        # Break the line up into multiple words, to allow more than one
-        # word per line.
+        """
+        Break the line up into multiple words, to allow more than one
+        word per line.
+        """
         use_prefix = len(strings) > 1
         for s in strings:
             try:
@@ -602,6 +613,9 @@ def interactive_mode(
         history = get_full_history()
 
         def rerun(command: str) -> bool:
+            """
+            Display and rerun a command from the history.
+            """
             print(f"{PROMPT}{command}")
             return handle_command(command)
 
@@ -634,9 +648,11 @@ def interactive_mode(
         return exit
 
     def print_banner() -> None:
-        # Print the banner using a random art font and a random terminal
-        # foreground color. The generated figlet has some blank lines (vertical
-        # padding at the end, which we will remove.
+        """
+        Print the banner using a random art font and a random terminal
+        foreground color. The generated figlet has some blank lines (vertical
+        padding at the end, which we will remove.
+        """
         banner: str = art.text2art(NAME, rng.choice(ART_FONTS)) # type: ignore
         banner_lines: list[str] = banner.split("\n")
         color: str = rng.choice(BANNER_COLORS)
@@ -728,6 +744,10 @@ def load_config_file(config_path: Path, must_exist: bool) -> Params:
         )
 
     def get_path(d: dict[str, Any], key: str, default: Path) -> Path:
+        """
+        Get a path from a dictionary, expanding it as necessary. (e.g.,
+        "~" is expanded to the current user's home directory)
+        """
         path = d.get(key)
         if path is not None:
             path = Path(path).expanduser()
@@ -829,6 +849,10 @@ def main(
     file settings.
     """
     def apply_command_line_params(params: Params) -> Params:
+        """
+        Update a Params object with the command line parameters, where
+        applicable, overriding the defaults.
+        """
         if dictionary is not None:
             params = dataclasses.replace(
                 params, dictionary=Path(dictionary).expanduser()
