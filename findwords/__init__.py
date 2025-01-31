@@ -1,3 +1,7 @@
+"""
+Take a string of letters and find all words that can be made from them.
+See the README.md file for more information.
+"""
 import atexit
 import dataclasses
 from dataclasses import dataclass, field
@@ -21,7 +25,7 @@ from termcolor import colored
 
 NAME = "findwords"
 VERSION = "1.1.1"
-CLICK_CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
+CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 HISTORY_LENGTH = 10_000
 # Note that Python's readline library can be based on GNU Readline
 # or the BSD Editline library, and it's not selectable. It's whatever
@@ -138,9 +142,9 @@ class TrieNode:
                 """
                 if (i := letters.index(letter)) != -1:
                     return letters[:i] + letters[i + 1 :]
-                else:
-                    # Letter not found. Just return the string.
-                    return letters
+
+                # Letter not found. Just return the string.
+                return letters
 
             # Filter the list of nodes so that we only consider the ones
             # that matter.
@@ -216,14 +220,14 @@ verbose_msg: Callable[[str], None] = print
 match os.environ.get("COLUMNS"):
     case None:
         SCREEN_WIDTH = DEFAULT_SCREEN_WIDTH
-    case s:
+    case s_width:
         try:
-            SCREEN_WIDTH = int(s)
+            SCREEN_WIDTH = int(s_width)
         except ValueError:
             SCREEN_WIDTH = DEFAULT_SCREEN_WIDTH
             print(
                 "The COLUMNS environment variable has an invalid value of "
-                f'"{s}". Using screen width of {DEFAULT_SCREEN_WIDTH}.'
+                f'"{s_width}". Using screen width of {DEFAULT_SCREEN_WIDTH}.'
             )
 
 
@@ -306,7 +310,7 @@ def load_dictionary(dict_path: Path, min_length: int) -> TrieNode:
         """
         total = 0
         unique_words: set[str] = set()
-        with open(dict_path) as f:
+        with open(dict_path, encoding="utf-8") as f:
             verbose_msg(f'Loading dictionary "{dict_path}".')
             for line in f.readlines():
                 word = line.strip()
@@ -356,11 +360,11 @@ def init_readline_bindings() -> None:
     """
     if (readline.__doc__ is not None) and ("libedit" in readline.__doc__):
         init_file = EDITLINE_BINDINGS_FILE
-        verbose_msg(f"Using editline (libedit).")
+        verbose_msg("Using editline (libedit).")
         completion_binding = "bind '^I' rl_complete"
     else:
         init_file = READLINE_BINDINGS_FILE
-        verbose_msg(f"Using GNU readline.")
+        verbose_msg("Using GNU readline.")
         completion_binding = "Control-I: rl_complete"
 
     if init_file.exists():
@@ -396,10 +400,7 @@ def init_readline_completion() -> None:
             case _:
                 options = []
 
-        if state < len(options):
-            return options[state]
-        else:
-            return None
+        return options[state] if state < len(options) else None
 
     readline.set_completer(command_completer)
 
@@ -508,7 +509,7 @@ def show_matches(matches: list[str]) -> None:
     :param matches: the list of words that match the original input string
     """
     if len(matches) == 0:
-        print(f"*** No matches.")
+        print("*** No matches.")
         return
 
     # Group them by word length. Note that itertools.groupby() requires that
@@ -525,6 +526,132 @@ def show_matches(matches: list[str]) -> None:
         print()
 
 
+def find_matches_for_inputs(strings: list[str],
+                            trie: TrieNode,
+                            min_length: int) -> None:
+    """
+    Break the line up into multiple words, to allow more than one
+    word per line; then, for each of the words, find and display the
+    matches.
+
+    :param strings: the list of strings to match
+    :param trie: the loaded dictionary trie
+    :param min_length: minimum length of words to match
+    """
+    use_prefix = len(strings) > 1
+    for s in strings:
+        try:
+            check_string(s, min_length)
+        except ValueError as e:
+            print(f'Ignoring "{s}": {e}')
+            continue
+
+        if use_prefix:
+            print()
+            print(multiple_matches_header(s))
+            print()
+
+        show_matches(trie.find_matches(s, min_length))
+
+
+def handle_history_rerun(line: str, trie: TrieNode, min_length: int) -> bool:
+    """
+    Parse and process the "history rerun" command, returning
+    True if the user wants to exit (i.e., re-runs an exit command)
+    and False otherwise.
+
+    :param line: the line of input representing the command
+    :param trie: the loaded dictionary trie
+    :param min_length: minimum length of words to match
+    """
+    assert line[0] == InternalCommand.RERUN.value
+    history = get_full_history()
+
+    def rerun(command: str) -> bool:
+        """
+        Display and rerun a command from the history.
+        """
+        print(f"{PROMPT}{command}")
+        return handle_command(command, trie, min_length)
+
+    exit_requested = False
+
+    match line[1:]:
+        case InternalCommand.RERUN.value:
+            # rerun last command
+            if len(history) == 0:
+                print("History is empty.")
+            else:
+                exit_requested = rerun(history[-1][1])
+
+        case s if ALL_DIGITS.search(s) is not None:
+            # rerun command n
+            n = int(s)
+            history_dict = dict(history)
+            cmd = history_dict.get(n)
+            if cmd is None:
+                print(f"There's no history item #{n}.")
+            else:
+                exit_requested = rerun(cmd)
+
+        case _:
+            print(
+                f"{InternalCommand.RERUN.value} must either be followed "
+                f"by a number or by {InternalCommand.RERUN.value}"
+            )
+
+    return exit_requested
+
+
+def handle_command(line: str, trie: TrieNode, min_length: int) -> bool:
+    """
+    Handle command input. Return True if user wants to exit,
+    False otherwise.
+
+    :param line: the line of input representing the command
+    :param trie: the loaded dictionary trie
+    :param min_length: minimum length of words to match
+    """
+    if len(line) == 0:
+        return False
+
+    exit_requested = False
+
+    line = line.strip()
+    tokens = line.split()
+    match tokens:
+        case []:
+            pass
+        case [InternalCommand.EXIT.value]:
+            return True
+        case [InternalCommand.EXIT.value, *_]:
+            print(f"{InternalCommand.EXIT.value} takes no arguments.")
+        case [InternalCommand.HELP.value]:
+            show_help()
+        case [InternalCommand.HELP.value, *_]:
+            print(f"{InternalCommand.HELP.value} takes no arguments.")
+        case [InternalCommand.HISTORY.value]:
+            show_history()
+        case [InternalCommand.HISTORY.value, n]:
+            try:
+                n = int(n)
+                if n <= 0:
+                    raise ValueError("Must be positive")
+                show_history(n)
+            except ValueError:
+                print(f"{InternalCommand.HISTORY.value}: Invalid number.")
+        case [InternalCommand.HISTORY.value, *_]:
+            print(f"{InternalCommand.HISTORY.value}: Too many parameters.")
+        case [s] if s[0] == InternalCommand.RERUN.value:
+            # Special case: This is a prefix, followed by a history
+            # item number.
+            exit_requested = handle_history_rerun(line, trie, min_length)
+        case [s, *_] if s[0] == INTERNAL_COMMAND_PREFIX:
+            print(f'"{s}" is an unknown command.')
+        case strings:
+            find_matches_for_inputs(strings, trie, min_length)
+
+    return exit_requested
 
 def interactive_mode(
     trie: TrieNode, history_path: Path, min_length: int
@@ -535,117 +662,8 @@ def interactive_mode(
 
     :param trie: the loaded dictionary trie
     :param history_path: path to the history file to use
+    :param min_length: minimum length of words to match
     """
-
-    def find_matches_for_inputs(strings: list[str]) -> None:
-        """
-        Break the line up into multiple words, to allow more than one
-        word per line.
-        """
-        use_prefix = len(strings) > 1
-        for s in strings:
-            try:
-                check_string(s, min_length)
-            except ValueError as e:
-                print(f'Ignoring "{s}": {e}')
-                continue
-
-            if use_prefix:
-                print()
-                print(multiple_matches_header(s))
-                print()
-
-            show_matches(trie.find_matches(s, min_length))
-
-    def handle_command(line: str) -> bool:
-        """
-        Handle command input. Return True if user wants to exit,
-        False otherwise.
-        """
-        if len(line) == 0:
-            return False
-
-        exit = False
-
-        line = line.strip()
-        tokens = line.split()
-        match tokens:
-            case []:
-                pass
-            case [InternalCommand.EXIT.value]:
-                return True
-            case [InternalCommand.EXIT.value, *_]:
-                print(f"{InternalCommand.EXIT.value} takes no arguments.")
-            case [InternalCommand.HELP.value]:
-                show_help()
-            case [InternalCommand.HELP.value, *_]:
-                print(f"{InternalCommand.HELP.value} takes no arguments.")
-            case [InternalCommand.HISTORY.value]:
-                show_history()
-            case [InternalCommand.HISTORY.value, n]:
-                try:
-                    n = int(n)
-                    if n <= 0:
-                        raise ValueError("Must be positive")
-                    show_history(n)
-                except ValueError:
-                    print(f"{InternalCommand.HISTORY.value}: Invalid number.")
-            case [InternalCommand.HISTORY.value, *_]:
-                print(f"{InternalCommand.HISTORY.value}: Too many parameters.")
-            case [s] if s[0] == InternalCommand.RERUN.value:
-                # Special case: This is a prefix, followed by a history
-                # item number.
-                exit = handle_history_rerun(line)
-            case [s, *_] if s[0] == INTERNAL_COMMAND_PREFIX:
-                print(f'"{s}" is an unknown command.')
-            case strings:
-                find_matches_for_inputs(strings)
-
-        return exit
-
-    def handle_history_rerun(line: str) -> bool:
-        """
-        Parse and process the "history rerun" command, returning
-        True if the user wants to exit (i.e., re-runs an exit command)
-        and False otherwise.
-        """
-        assert line[0] == InternalCommand.RERUN.value
-        history = get_full_history()
-
-        def rerun(command: str) -> bool:
-            """
-            Display and rerun a command from the history.
-            """
-            print(f"{PROMPT}{command}")
-            return handle_command(command)
-
-        exit = False
-
-        match line[1:]:
-            case InternalCommand.RERUN.value:
-                # rerun last command
-                if len(history) == 0:
-                    print("History is empty.")
-                else:
-                    exit = rerun(history[-1][1])
-
-            case s if ALL_DIGITS.search(s) is not None:
-                # rerun command n
-                n = int(s)
-                history_dict = dict(history)
-                cmd = history_dict.get(n)
-                if cmd is None:
-                    print(f"There's no history item #{n}.")
-                else:
-                    exit = rerun(cmd)
-
-            case _:
-                print(
-                    f"{InternalCommand.RERUN.value} must either be followed "
-                    f"by a number or by {InternalCommand.RERUN.value}"
-                )
-
-        return exit
 
     def print_banner() -> None:
         """
@@ -667,7 +685,7 @@ def interactive_mode(
     rng = random.SystemRandom()
     print_banner()
     print(f"Version {VERSION}")
-    print(f"Enter one or more strings, separated by white space.")
+    print("Enter one or more strings, separated by white space.")
     print(f'Type Ctrl-D or "{InternalCommand.EXIT.value}" to exit.')
     print(f'Type "{InternalCommand.HELP.value}" for help on commands.')
     print()
@@ -676,8 +694,8 @@ def interactive_mode(
         try:
             # input() automatically uses the readline library, if it's
             # been loaded.
-            exit = handle_command(input(PROMPT))
-            if exit:
+            exit_requested = handle_command(input(PROMPT), trie, min_length)
+            if exit_requested:
                 break
 
         except EOFError:
@@ -764,6 +782,7 @@ def load_config_file(config_path: Path, must_exist: bool) -> Params:
     )
 
 
+# pylint: disable=unused-argument
 def validate_min_length(ctx: click.Context, param: str, value: int) -> int:
     """
     Click callback to ensure the minimum length is a positive integer.
@@ -823,6 +842,7 @@ def validate_min_length(ctx: click.Context, param: str, value: int) -> int:
     help='Emit initialization messages (like "Loading dictionary") on startup.',
 )
 @click.argument("letter_list", nargs=-1, metavar="letters")
+# pylint: disable=too-many-arguments,too-many-positional-arguments
 def main(
     config: str | None,
     dictionary: str | None,
@@ -873,8 +893,10 @@ def main(
         return params
 
 
+    # pylint: disable=global-statement
     global verbose_msg
     if not verbose:
+        # pylint: disable=unnecessary-lambda-assignment
         verbose_msg = lambda _: None
 
     if config is not None:
@@ -899,4 +921,5 @@ def main(
 
 
 if __name__ == "__main__":
+    # pylint: disable=no-value-for-parameter
     main()
