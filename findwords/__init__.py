@@ -24,7 +24,7 @@ from termcolor import colored
 
 
 NAME = "findwords"
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 HISTORY_LENGTH = 10_000
 # Note that Python's readline library can be based on GNU Readline
