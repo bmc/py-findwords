@@ -38,7 +38,9 @@ DEFAULT_HISTORY_FILE = Path("~/.findwords-history").expanduser()
 DEFAULT_CONFIG_FILE = Path("~/.findwords.toml").expanduser()
 DEFAULT_DICTIONARY = Path("~/etc/findwords/dict.txt").expanduser()
 DEFAULT_MIN_LENGTH = 2
-PROMPT = colored("findwords> ", "cyan", attrs=["bold"])
+# Don't colorize the prompt. It makes readline() confused about the
+# length of the prompt.
+PROMPT = "findwords> "
 DEFAULT_SCREEN_WIDTH: int = 79
 INTERNAL_COMMAND_PREFIX = "."
 ALL_DIGITS = re.compile(r"^\d+$")
