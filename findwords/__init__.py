@@ -20,11 +20,11 @@ from typing import Self, Callable, Sequence, Tuple, Any
 
 import art
 import click
-from termcolor import colored
+from neotermcolor import colored
 
 
 NAME = "findwords"
-VERSION = "1.1.3"
+VERSION = "1.1.4"
 CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 HISTORY_LENGTH = 10_000
 # Note that Python's readline library can be based on GNU Readline
@@ -38,8 +38,10 @@ DEFAULT_HISTORY_FILE = Path("~/.findwords-history").expanduser()
 DEFAULT_CONFIG_FILE = Path("~/.findwords.toml").expanduser()
 DEFAULT_DICTIONARY = Path("~/etc/findwords/dict.txt").expanduser()
 DEFAULT_MIN_LENGTH = 2
-# Don't colorize the prompt. It makes readline() confused about the
-# length of the prompt.
+# Don't colorize the prompt. It makes readline() confused about the length of
+# the prompt. The stock workaround (surrounding the color codes with \001 and
+# \002) doesn't work with readline() when the prompt is colored — at least on
+# MacOS with Python linked against libedit, not GNU Readline.
 PROMPT = "findwords> "
 DEFAULT_SCREEN_WIDTH: int = 79
 INTERNAL_COMMAND_PREFIX = "."
@@ -57,7 +59,6 @@ ART_FONTS = (
 BANNER_COLORS = (
     "cyan",
     "red",
-    "black",
     "blue",
     "green",
 )
