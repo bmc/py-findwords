@@ -24,7 +24,7 @@ from termcolor import colored
 
 
 NAME = "findwords"
-VERSION = "1.1.2"
+VERSION = "1.1.3"
 CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 HISTORY_LENGTH = 10_000
 # Note that Python's readline library can be based on GNU Readline
@@ -233,14 +233,14 @@ match os.environ.get("COLUMNS"):
             )
 
 
-def check_string(s: str, min_length: int) -> bool:
+def check_letters(s: str, min_length: int) -> bool:
     """
-    Determine whether a string to match is valid. Currently, only strings
-    with ASCII letters are permitted, and the length must be at least as
-    long as min_length.
+    Determine whether a series of letters to match is valid. Currently, only
+    ASCII letters are permitted, and the length must be at least as long as
+    min_length.
 
     :param s: the string to check
-
+    :param min_length: minimum length of the string
     :raises ValueError: if the string is invalid
     """
     if len(s) < min_length:
@@ -278,7 +278,7 @@ def add_word(word: str, root: TrieNode) -> None:
     Add a word from the dictionary into the dictionary trie.
 
     :param word: the word to add
-    :param root: the root of the trie
+    :param root: the root of the trie (i.e., the topmost empty node)
     """
     node = root
 
@@ -320,7 +320,7 @@ def load_dictionary(dict_path: Path, min_length: int) -> TrieNode:
                     continue
 
                 try:
-                    check_string(word, 1)
+                    check_letters(word, 1)
                 except ValueError as e:
                     verbose_msg(f'*** Skipping word "{word}": {e}')
                     continue
@@ -529,7 +529,7 @@ def show_matches(matches: list[str]) -> None:
 
 
 def find_matches_for_inputs(strings: list[str],
-                            trie: TrieNode,
+                            dictionary: TrieNode,
                             min_length: int) -> None:
     """
     Break the line up into multiple words, to allow more than one
@@ -537,13 +537,13 @@ def find_matches_for_inputs(strings: list[str],
     matches.
 
     :param strings: the list of strings to match
-    :param trie: the loaded dictionary trie
+    :param dictionary: the loaded dictionary trie
     :param min_length: minimum length of words to match
     """
     use_prefix = len(strings) > 1
     for s in strings:
         try:
-            check_string(s, min_length)
+            check_letters(s, min_length)
         except ValueError as e:
             print(f'Ignoring "{s}": {e}')
             continue
@@ -553,17 +553,19 @@ def find_matches_for_inputs(strings: list[str],
             print(multiple_matches_header(s))
             print()
 
-        show_matches(trie.find_matches(s, min_length))
+        show_matches(dictionary.find_matches(s, min_length))
 
 
-def handle_history_rerun(line: str, trie: TrieNode, min_length: int) -> bool:
+def handle_history_rerun(line: str,
+                         dictionary: TrieNode,
+                         min_length: int) -> bool:
     """
     Parse and process the "history rerun" command, returning
     True if the user wants to exit (i.e., re-runs an exit command)
     and False otherwise.
 
     :param line: the line of input representing the command
-    :param trie: the loaded dictionary trie
+    :param dictionary: the loaded dictionary trie
     :param min_length: minimum length of words to match
     """
     assert line[0] == InternalCommand.RERUN.value
@@ -574,7 +576,7 @@ def handle_history_rerun(line: str, trie: TrieNode, min_length: int) -> bool:
         Display and rerun a command from the history.
         """
         print(f"{PROMPT}{command}")
-        return handle_command(command, trie, min_length)
+        return handle_command(command, dictionary, min_length)
 
     exit_requested = False
 
@@ -605,13 +607,13 @@ def handle_history_rerun(line: str, trie: TrieNode, min_length: int) -> bool:
     return exit_requested
 
 
-def handle_command(line: str, trie: TrieNode, min_length: int) -> bool:
+def handle_command(line: str, dictionary: TrieNode, min_length: int) -> bool:
     """
     Handle command input. Return True if user wants to exit,
     False otherwise.
 
     :param line: the line of input representing the command
-    :param trie: the loaded dictionary trie
+    :param dictionary: the loaded dictionary trie
     :param min_length: minimum length of words to match
     """
     if len(line) == 0:
@@ -647,22 +649,24 @@ def handle_command(line: str, trie: TrieNode, min_length: int) -> bool:
         case [s] if s[0] == InternalCommand.RERUN.value:
             # Special case: This is a prefix, followed by a history
             # item number.
-            exit_requested = handle_history_rerun(line, trie, min_length)
+            exit_requested = handle_history_rerun(
+                line, dictionary, min_length
+            )
         case [s, *_] if s[0] == INTERNAL_COMMAND_PREFIX:
             print(f'"{s}" is an unknown command.')
         case strings:
-            find_matches_for_inputs(strings, trie, min_length)
+            find_matches_for_inputs(strings, dictionary, min_length)
 
     return exit_requested
 
 def interactive_mode(
-    trie: TrieNode, history_path: Path, min_length: int
+    dictionary: TrieNode, history_path: Path, min_length: int
 ) -> None:
     """
     No letters on command line, so prompt for successive words with
     readline. Continues prompting until Ctrl-D or InternalCommand.EXIT.
 
-    :param trie: the loaded dictionary trie
+    :param dictionary: the loaded dictionary trie
     :param history_path: path to the history file to use
     :param min_length: minimum length of words to match
     """
@@ -696,7 +700,11 @@ def interactive_mode(
         try:
             # input() automatically uses the readline library, if it's
             # been loaded.
-            exit_requested = handle_command(input(PROMPT), trie, min_length)
+            exit_requested = handle_command(
+                line=input(PROMPT),
+                dictionary=dictionary,
+                min_length=min_length
+            )
             if exit_requested:
                 break
 
@@ -707,19 +715,19 @@ def interactive_mode(
 
 
 def once_and_done(
-    trie: TrieNode, letter_list: list[str], min_length: int
+    dictionary: TrieNode, letter_list: list[str], min_length: int
 ) -> None:
     """
     Handle command line letters: Find matches for each set of letters,
     print them, and return.
 
-    :param trie: the loaded dictionary trie
+    :param dictionary: the loaded dictionary trie
     :param letter_list: the list of strings to process
     """
     header_and_sep = len(letter_list) > 1
     for letters in letter_list:
         try:
-            check_string(letters, min_length)
+            check_letters(letters, min_length)
         except ValueError as e:
             print(f'Skipping "{letters}": {e}')
             continue
@@ -729,7 +737,7 @@ def once_and_done(
             print(letters)
             print()
 
-        show_matches(trie.find_matches(letters, min_length))
+        show_matches(dictionary.find_matches(letters, min_length))
         if header_and_sep:
             print("-" * 50)
 
@@ -810,6 +818,7 @@ def validate_min_length(ctx: click.Context, param: str, value: int) -> int:
 @click.option(
     "-d",
     "--dictionary",
+    "dictionary_path",
     type=click.Path(exists=True, dir_okay=False),
     envvar="FINDWORDS_DICTIONARY",
     help="Path to dictionary to load and use. If not specified, the "
@@ -847,7 +856,7 @@ def validate_min_length(ctx: click.Context, param: str, value: int) -> int:
 # pylint: disable=too-many-arguments,too-many-positional-arguments
 def main(
     config: str | None,
-    dictionary: str | None,
+    dictionary_path: str | None,
     letter_list: list[str],
     history: str | None,
     min_length: int | None,
@@ -875,14 +884,14 @@ def main(
         Update a Params object with the command line parameters, where
         applicable, overriding the defaults.
         """
-        if dictionary is not None:
+        if dictionary_path is not None:
             params = dataclasses.replace(
-                params, dictionary=Path(dictionary).expanduser()
+                params, dictionary=Path(dictionary_path).expanduser()
             )
 
         if history is not None:
             params = dataclasses.replace(
-                params, dictionary=Path(history).expanduser()
+                params, history=Path(history).expanduser()
             )
 
         if min_length is not None:
@@ -915,11 +924,11 @@ def main(
         load_config_file(config_path, config_must_exist)
     )
 
-    trie = load_dictionary(params.dictionary, params.min_length)
+    dictionary = load_dictionary(params.dictionary, params.min_length)
     if len(letter_list) > 0:
-        once_and_done(trie, letter_list, params.min_length)
+        once_and_done(dictionary, letter_list, params.min_length)
     else:
-        interactive_mode(trie, params.history_path, params.min_length)
+        interactive_mode( dictionary, params.history_path, params.min_length)
 
 
 if __name__ == "__main__":
