@@ -24,7 +24,7 @@ from neotermcolor import colored
 
 
 NAME = "findwords"
-VERSION = "1.1.4"
+VERSION = "1.1.5"
 CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 HISTORY_LENGTH = 10_000
 # Note that Python's readline library can be based on GNU Readline
@@ -519,12 +519,18 @@ def show_matches(matches: list[str]) -> None:
     # the input be sorted by the same function that will group them.
     sorted_matches = sorted(matches, key=len)
     grouped = itertools.groupby(sorted_matches, key=len)
+    max_length = max(len(m) for m in matches)
+    max_length_digits = len(str(max_length))
+    padding = max_length_digits
+    suffix = ") "
 
     # groupby() returns a (key, group_list) pair. The key is the length, which
     # we can ignore here.
-    for _, group in grouped:
+    for length, group in grouped:
+        prefix = f"{length:{padding}d}{suffix}"
         for word in sorted(group):
-            print(word)
+            print(f"{prefix}{word}")
+            prefix = " " * (padding + len(suffix))
 
         print()
 
