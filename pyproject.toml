@@ -93,3 +93,26 @@ src_paths = ["*.py"]
 include = ["./*.py"]
 exclude = ["./tasks.py", "bin"]
 
+[tool.ruff]
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+ignore = [
+     # ignore ruff's insistence in importing Sequence from collections.abc
+    "UP035",
+    "E731"
+]

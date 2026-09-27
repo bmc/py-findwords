@@ -25,14 +25,14 @@ do
     echo "Checking types in findwords"
     pyright findwords || die "pyright failed"
     echo "Linting findwords"
-    pylint findwords || die "pylint failed"
+    ruff check findwords || die "ruff failed"
     echo "pycheck -cf " findwords/*.py
     pycheck -cf findwords/*.py || die "pycheck failed"
   else
     echo "Checking types in $i"
     pyright $i || die "pyright failed"
     echo "Linting $i"
-    pylint $i || die "pylint failed"
+    ruff check $i || die "ruff failed"
     echo "pycheck -cf $i"
     pycheck -cf $i || die "pycheck failed"
   fi

@@ -4,28 +4,26 @@ See the README.md file for more information.
 """
 import atexit
 import dataclasses
-from dataclasses import dataclass, field
-from enum import StrEnum
 import itertools
 import os
-from pathlib import Path
 import random
 import re
 import readline
 import string
 import textwrap
 import tomllib
+from dataclasses import dataclass, field
+from enum import StrEnum
+from pathlib import Path
 from time import time
-from typing import Self, Callable, Sequence, Tuple, Any
+from typing import Any, Callable, Self, Sequence
 
 import art
 import click
 from neotermcolor import colored
 
-
 NAME = "findwords"
-VERSION = "1.1.5"
-CLICK_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
+VERSION = "1.1.6"
 HISTORY_LENGTH = 10_000
 # Note that Python's readline library can be based on GNU Readline
 # or the BSD Editline library, and it's not selectable. It's whatever
@@ -189,7 +187,7 @@ class InternalCommand(StrEnum):
 
 # This is a series of (command, explanation) tuples, used to generate help
 # output.
-HELP: Sequence[Tuple[str, str]] = (
+HELP: Sequence[tuple[str, str]] = (
     (InternalCommand.EXIT.value, f"Quit {NAME}. You can also use Ctrl-D."),
     (InternalCommand.HELP.value, "This output."),
     (
@@ -258,7 +256,7 @@ def check_letters(s: str, min_length: int) -> bool:
     return True
 
 
-def time_op(func: Callable[..., Any], *args: Any, **kw: Any) -> Tuple[int, Any]:
+def time_op(func: Callable[..., Any], *args: Any, **kw: Any) -> tuple[int, Any]:
     """
     Time a function call, in milliseconds.
 
@@ -449,7 +447,7 @@ def show_help() -> None:
     print(wrapped)
 
 
-def get_full_history() -> list[Tuple[int, str]]:
+def get_full_history() -> list[tuple[int, str]]:
     """
     Return the entire readline() history as a list to (number, string) pairs.
     The number is the history item ID number, and it will be unique and in
@@ -784,12 +782,7 @@ def load_config_file(config_path: Path, must_exist: bool) -> Params:
         "~" is expanded to the current user's home directory)
         """
         path = d.get(key)
-        if path is not None:
-            path = Path(path).expanduser()
-        else:
-            path = default
-
-        return path
+        return Path(path).expanduser() if path is not None else default
 
     return Params(
         dictionary=get_path(findwords, "dictionary", DEFAULT_DICTIONARY),
@@ -804,16 +797,15 @@ def validate_min_length(ctx: click.Context, param: str, value: int) -> int:
     """
     Click callback to ensure the minimum length is a positive integer.
     """
-    if value is not None:
-        if value <= 0:
-            raise click.BadParameter(f"{param} must be a positive integer.")
+    if value is not None and value <= 0:
+        raise click.BadParameter(f"{param} must be a positive integer.")
 
     return value
 
 
 @click.command(
     name=NAME,
-    context_settings=CLICK_CONTEXT_SETTINGS,
+    context_settings={"help_option_names": ["-h", "--help"]},
     epilog=f"Default configuration file: {DEFAULT_CONFIG_FILE}",
 )
 @click.option(
