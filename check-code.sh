@@ -37,8 +37,8 @@ do
     pycheck -cf $i || die "pycheck failed"
   fi
 
-  #echo "Sorting imports in $i"
-  #isort $i
+  echo "Sorting imports in $i"
+  isort $i
 
   #echo "Formatting $i with black"
   #black $i
