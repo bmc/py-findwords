@@ -23,7 +23,7 @@ import click
 from neotermcolor import colored
 
 NAME = "findwords"
-VERSION = "1.1.6"
+VERSION = "1.1.7"
 HISTORY_LENGTH = 10_000
 # Note that Python's readline library can be based on GNU Readline
 # or the BSD Editline library, and it's not selectable. It's whatever
@@ -185,6 +185,68 @@ class InternalCommand(StrEnum):
     RERUN = "!"  # special case: this is a prefix
 
 
+class ScreenInfo:
+    """
+    Information about the screen, such as its width.
+    """
+    def __init__(self: Self, default_width: int) -> None:
+        """
+        Initialize the ScreenInfo object with a default width.
+
+        :param default_width: The default screen width to use if the COLUMNS
+            environment variable is not set or invalid.
+        """
+        self._default_width = default_width
+
+    @property
+    def default_width(self: Self) -> int:
+        """
+        Get the default screen width.
+
+        :returns: The default screen width as an integer.
+        """
+        return self._default_width
+
+    @property
+    def width(self: Self) -> int:
+        """
+        Get the current screen width.
+
+        :returns: The current screen width as an integer.
+        """
+        return self._determine_width()
+
+    def _determine_width(self: Self) -> int:
+        """
+        Determine the screen width based on the COLUMNS environment variable.
+        If COLUMNS is not set or has an invalid value, return the default
+        width.
+
+        :returns: The determined screen width as an integer.
+        """
+        try:
+            return os.get_terminal_size().columns
+        except OSError:
+            print("Could not determine current terminal size. Falling back\n"
+                  "to COLUMNS environment variable or default width.")
+            match os.environ.get("COLUMNS"):
+                case None:
+                    return self._default_width
+                case s_width:
+                    try:
+                        w = int(s_width)
+                        if w <= 0:
+                            raise ValueError("Screen width must be positive.")
+                        return w
+                    except ValueError:
+                        print(
+                            "The COLUMNS environment variable has an invalid value "
+                            f'of "{s_width}".\nUsing default screen width of '
+                            f"{self._default_width}."
+                        )
+                        return self._default_width
+
+
 # This is a series of (command, explanation) tuples, used to generate help
 # output.
 HELP: Sequence[tuple[str, str]] = (
@@ -213,23 +275,10 @@ HELP_EPILOG = (
     "against dictionary words."
 )
 
+SCREEN = ScreenInfo(DEFAULT_SCREEN_WIDTH)
 
 # Will be changed to something else if -q is specified.
 verbose_msg: Callable[[str], None] = print
-
-
-match os.environ.get("COLUMNS"):
-    case None:
-        SCREEN_WIDTH = DEFAULT_SCREEN_WIDTH
-    case s_width:
-        try:
-            SCREEN_WIDTH = int(s_width)
-        except ValueError:
-            SCREEN_WIDTH = DEFAULT_SCREEN_WIDTH
-            print(
-                "The COLUMNS environment variable has an invalid value of "
-                f'"{s_width}". Using screen width of {DEFAULT_SCREEN_WIDTH}.'
-            )
 
 
 def check_letters(s: str, min_length: int) -> bool:
@@ -383,6 +432,12 @@ def init_readline_completion() -> None:
     def command_completer(text: str, state: int) -> str | None:
         """
         Completes internal commands starting with "."
+
+        :param text: The current text to complete.
+        :param state: The completion state (0 for the first match, 1 for the
+            second, etc.)
+        :return: The next possible completion for 'text', or None if no more
+            completions are available.
         """
         commands = [cmd.value for cmd in InternalCommand]
         full_line = readline.get_line_buffer()
@@ -409,6 +464,9 @@ def init_readline_completion() -> None:
 def init_readline(history_path: Path) -> None:
     """
     Initializes all necessary aspects of the readline library.
+
+    :param history_path: Path to the history file where readline history will
+        be stored
     """
     init_readline_history(history_path)
     init_readline_bindings()
@@ -426,7 +484,7 @@ def show_help() -> None:
     # How much room do we have left for text? Allow for separating " - ".
 
     separator = " - "
-    text_width = SCREEN_WIDTH - len(separator) - prefix_width
+    text_width = SCREEN.width - len(separator) - prefix_width
     if text_width < 0:
         # Screw it. Just pick some value.
         text_width = DEFAULT_SCREEN_WIDTH // 2
@@ -443,7 +501,7 @@ def show_help() -> None:
             print(f"{padding}{text_line}")
 
     print("")
-    wrapped = textwrap.fill(HELP_EPILOG, width=SCREEN_WIDTH)
+    wrapped = textwrap.fill(HELP_EPILOG, width=SCREEN.width)
     print(wrapped)
 
 
@@ -458,34 +516,6 @@ def get_full_history() -> list[tuple[int, str]]:
     return [
         (i, readline.get_history_item(i)) for i in range(1, history_length)
     ]
-
-
-def show_history(total: int = 0) -> None:
-    """
-    Interactive mode only: Display the history.
-
-    :param total: Limit to number of entries to show, or 0 for all. NOT
-                  CURRENTLY USED. Hook for future enhancement.
-    """
-
-    def format_history_item(line: str, index: int) -> str:
-        """
-        Format a single history line.
-
-        :param line: The history line
-        :param index: The index (number) of the history line
-        """
-        return f"{index:5d}) {line}"
-
-    history_items = get_full_history()
-    match total:
-        case n if n <= 0:
-            pass
-        case n if n > 0:
-            history_items = history_items[-n:]
-
-    for i, line in history_items:
-        print(format_history_item(line, i))
 
 
 def multiple_matches_header(s: str) -> str:
@@ -522,8 +552,8 @@ def show_matches(matches: list[str]) -> None:
     padding = max_length_digits
     suffix = ") "
 
-    # groupby() returns a (key, group_list) pair. The key is the length, which
-    # we can ignore here.
+    # groupby() returns a (key, group_list) pair. The key is the length, and
+    # the list contains all words of that length.
     for length, group in grouped:
         prefix = f"{length:{padding}d}{suffix}"
         for word in sorted(group):
@@ -561,6 +591,34 @@ def find_matches_for_inputs(strings: list[str],
         show_matches(dictionary.find_matches(s, min_length))
 
 
+def show_history(total: int = 0) -> None:
+    """
+    Interactive mode only: Display the history.
+
+    :param total: Limit to number of entries to show, or 0 for all. NOT
+                  CURRENTLY USED. Hook for future enhancement.
+    """
+
+    def format_history_item(line: str, index: int) -> str:
+        """
+        Format a single history line.
+
+        :param line: The history line
+        :param index: The index (number) of the history line
+        """
+        return f"{index:5d}) {line}"
+
+    history_items = get_full_history()
+    match total:
+        case n if n <= 0:
+            pass
+        case n if n > 0:
+            history_items = history_items[-n:]
+
+    for i, line in history_items:
+        print(format_history_item(line, i))
+
+
 def handle_history_rerun(line: str,
                          dictionary: TrieNode,
                          min_length: int) -> bool:
@@ -572,6 +630,7 @@ def handle_history_rerun(line: str,
     :param line: the line of input representing the command
     :param dictionary: the loaded dictionary trie
     :param min_length: minimum length of words to match
+    :return: True if the user wants to exit, False otherwise
     """
     assert line[0] == InternalCommand.RERUN.value
     history = get_full_history()
@@ -620,7 +679,32 @@ def handle_command(line: str, dictionary: TrieNode, min_length: int) -> bool:
     :param line: the line of input representing the command
     :param dictionary: the loaded dictionary trie
     :param min_length: minimum length of words to match
+    :return: True if the user wants to exit, False otherwise
     """
+    def handle_history_display(s_number: str | None = None) -> None:
+        """
+        Display the history. If s_number is None, display the full history.
+        Otherwise, display the last s_number entries.
+
+        :param s_number: the number of history entries to display, or None for
+            all entries
+        """
+        if s_number is None:
+            show_history()
+        else:
+            try:
+                n = int(s_number)
+            except ValueError:
+                print(f'"{s_number}" is not a valid number.')
+                return
+
+            if n <= 0:
+                print("Number must be positive.")
+                return
+
+            show_history(n)
+
+
     if len(line) == 0:
         return False
 
@@ -640,15 +724,9 @@ def handle_command(line: str, dictionary: TrieNode, min_length: int) -> bool:
         case [InternalCommand.HELP.value, *_]:
             print(f"{InternalCommand.HELP.value} takes no arguments.")
         case [InternalCommand.HISTORY.value]:
-            show_history()
-        case [InternalCommand.HISTORY.value, n]:
-            try:
-                n = int(n)
-                if n <= 0:
-                    raise ValueError("Must be positive")
-                show_history(n)
-            except ValueError:
-                print(f"{InternalCommand.HISTORY.value}: Invalid number.")
+            handle_history_display()
+        case [InternalCommand.HISTORY.value, s_number]:
+            handle_history_display(s_number)
         case [InternalCommand.HISTORY.value, *_]:
             print(f"{InternalCommand.HISTORY.value}: Too many parameters.")
         case [s] if s[0] == InternalCommand.RERUN.value:
