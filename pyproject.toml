@@ -15,6 +15,7 @@ dynamic = ["version", "readme"]
 dependencies = [
   "art>=6.3",
   "click>=8.1.7",
+  "grizzled-python@git+https://github.com/bmc/grizzled-python@master",
   "neotermcolor >= 2.0.11"
 ]
 description = "A fast word finder, suitable for Scrabble or Words with Friends"

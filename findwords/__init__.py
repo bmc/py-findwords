@@ -5,7 +5,6 @@ See the README.md file for more information.
 import atexit
 import dataclasses
 import itertools
-import os
 import random
 import re
 import readline
@@ -20,10 +19,11 @@ from typing import Any, Callable, Self, Sequence
 
 import art
 import click
+from grizzled.os import get_terminal_size
 from neotermcolor import colored
 
 NAME = "findwords"
-VERSION = "1.1.7"
+VERSION = "1.1.8"
 HISTORY_LENGTH = 10_000
 # Note that Python's readline library can be based on GNU Readline
 # or the BSD Editline library, and it's not selectable. It's whatever
@@ -185,67 +185,6 @@ class InternalCommand(StrEnum):
     RERUN = "!"  # special case: this is a prefix
 
 
-class ScreenInfo:
-    """
-    Information about the screen, such as its width.
-    """
-    def __init__(self: Self, default_width: int) -> None:
-        """
-        Initialize the ScreenInfo object with a default width.
-
-        :param default_width: The default screen width to use if the COLUMNS
-            environment variable is not set or invalid.
-        """
-        self._default_width = default_width
-
-    @property
-    def default_width(self: Self) -> int:
-        """
-        Get the default screen width.
-
-        :returns: The default screen width as an integer.
-        """
-        return self._default_width
-
-    @property
-    def width(self: Self) -> int:
-        """
-        Get the current screen width.
-
-        :returns: The current screen width as an integer.
-        """
-        return self._determine_width()
-
-    def _determine_width(self: Self) -> int:
-        """
-        Determine the screen width based on the COLUMNS environment variable.
-        If COLUMNS is not set or has an invalid value, return the default
-        width.
-
-        :returns: The determined screen width as an integer.
-        """
-        try:
-            return os.get_terminal_size().columns
-        except OSError:
-            print("Could not determine current terminal size. Falling back\n"
-                  "to COLUMNS environment variable or default width.")
-            match os.environ.get("COLUMNS"):
-                case None:
-                    return self._default_width
-                case s_width:
-                    try:
-                        w = int(s_width)
-                        if w <= 0:
-                            raise ValueError("Screen width must be positive.")
-                        return w
-                    except ValueError:
-                        print(
-                            "The COLUMNS environment variable has an invalid value "
-                            f'of "{s_width}".\nUsing default screen width of '
-                            f"{self._default_width}."
-                        )
-                        return self._default_width
-
 
 # This is a series of (command, explanation) tuples, used to generate help
 # output.
@@ -275,7 +214,7 @@ HELP_EPILOG = (
     "against dictionary words."
 )
 
-SCREEN = ScreenInfo(DEFAULT_SCREEN_WIDTH)
+SCREEN_WIDTH = get_terminal_size()[0]
 
 # Will be changed to something else if -q is specified.
 verbose_msg: Callable[[str], None] = print
@@ -484,7 +423,7 @@ def show_help() -> None:
     # How much room do we have left for text? Allow for separating " - ".
 
     separator = " - "
-    text_width = SCREEN.width - len(separator) - prefix_width
+    text_width = SCREEN_WIDTH - len(separator) - prefix_width
     if text_width < 0:
         # Screw it. Just pick some value.
         text_width = DEFAULT_SCREEN_WIDTH // 2
@@ -501,7 +440,7 @@ def show_help() -> None:
             print(f"{padding}{text_line}")
 
     print("")
-    wrapped = textwrap.fill(HELP_EPILOG, width=SCREEN.width)
+    wrapped = textwrap.fill(HELP_EPILOG, width=SCREEN_WIDTH)
     print(wrapped)
 
 
